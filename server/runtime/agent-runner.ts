@@ -235,7 +235,10 @@ async function runInstruction(
     let buffer = ''
     let lastFlush = Date.now()
 
+    const appConfig = useRuntimeConfig()
     const result = await adapter.run(provider, {
+      agentId,
+      erebusBaseUrl: `http://127.0.0.1:${appConfig.port || 4521}`,
       history: loadHistory(agentId),
       instruction: instruction.content,
       systemPrompt: agent.systemPrompt,

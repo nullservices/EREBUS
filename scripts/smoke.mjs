@@ -450,6 +450,114 @@ const doubleResolve = await req('PATCH', `/api/interventions/${archonInterventio
 })
 check('double resolution → 409', doubleResolve.status === 409)
 
+// ── Phase VI · tools & permission gate ────────────────────────────────
+
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join as pathJoin } from 'node:path'
+
+const toolDir = mkdtempSync(pathJoin(tmpdir(), 'erebus-smoke-'))
+
+const toolAgent = await req('POST', '/api/agents', {
+  name: 'TOOL_TEST',
+  role: 'Developer',
+  workingDir: toolDir,
+  tools: ['filesystem', 'git', 'terminal'],
+  permissions: { filesystem: 'allow', git: 'readonly', terminal: 'allow' },
+})
+check('tool test entity created', toolAgent.status === 200)
+
+const toolList = await req('POST', '/api/internal/tools/list', { agentId: toolAgent.json.id })
+check('internal tool list serves entity tools', toolList.status === 200 && toolList.json?.some((t) => t.name === 'terminal') && !toolList.json?.some((t) => t.name === 'task_create'))
+
+const termCall = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'terminal',
+  args: { command: 'echo hello-erebus' },
+})
+check('terminal tool executes for allow', termCall.status === 200 && !termCall.json?.isError && termCall.json?.content?.includes('hello-erebus'), JSON.stringify(termCall.json))
+
+const fsWrite = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'fs_write',
+  args: { path: 'smoke.txt', content: 'written by the tool' },
+})
+check('fs_write executes for allow', fsWrite.status === 200 && !fsWrite.json?.isError)
+check('file actually written on host', readFileSync(pathJoin(toolDir, 'smoke.txt'), 'utf8') === 'written by the tool')
+
+const fsRead = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'fs_read',
+  args: { path: 'smoke.txt' },
+})
+check('fs_read returns the content', fsRead.json?.content === 'written by the tool')
+
+const fsEscape = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'fs_read',
+  args: { path: '../../Windows/win.ini' },
+})
+check('path escape refused', fsEscape.json?.isError === true && /escapes/i.test(fsEscape.json?.content ?? ''), JSON.stringify(fsEscape.json))
+
+const gitCommit = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'git',
+  args: { args: 'commit -m x' },
+})
+check('readonly git refuses mutating commands', gitCommit.json?.isError === true && /read-only/i.test(gitCommit.json?.content ?? ''), JSON.stringify(gitCommit.json))
+
+// deny
+const denyAgent = await req('POST', '/api/agents', {
+  name: 'TOOL_DENY',
+  tools: ['terminal'],
+  permissions: { terminal: 'deny' },
+})
+const denyCall = await req('POST', '/api/internal/tools/call', {
+  agentId: denyAgent.json.id,
+  name: 'terminal',
+  args: { command: 'echo nope' },
+})
+check('denied tool refused', denyCall.json?.isError === true && /denied/i.test(denyCall.json?.content ?? ''), JSON.stringify(denyCall.json))
+
+// ask → approval intervention, operator approves, run completes
+const askAgent = await req('POST', '/api/agents', {
+  name: 'TOOL_ASK',
+  tools: ['filesystem'],
+  permissions: { filesystem: 'ask' },
+  workingDir: toolDir,
+})
+const askCallPromise = req('POST', '/api/internal/tools/call', {
+  agentId: askAgent.json.id,
+  name: 'fs_write',
+  args: { path: 'approved.txt', content: 'approved' },
+})
+const approval = await waitFor(async () => {
+  const list = await req('GET', `/api/interventions?agentId=${askAgent.json.id}&status=PENDING`)
+  return list.json?.length ? list.json[0] : null
+}, 10000)
+check('ask permission raises approval intervention', Boolean(approval), JSON.stringify(approval))
+const approvedRes = await req('PATCH', `/api/interventions/${approval.id}`, { resolution: 'APPROVE' })
+check('approval resolves', approvedRes.status === 200)
+const askCall = await askCallPromise
+check('approved tool call completes', askCall.json?.isError === false && askCall.json?.content?.includes('written'), JSON.stringify(askCall.json))
+
+// mcp-gated protocol tools
+const protoAgent = await req('POST', '/api/agents', {
+  name: 'TOOL_PROTO',
+  tools: ['mcp'],
+  permissions: { mcp: 'allow' },
+})
+const protoList = await req('POST', '/api/internal/tools/list', { agentId: protoAgent.json.id, protocolOnly: true })
+check('protocol tools listed for mcp-enabled entity', protoList.json?.some((t) => t.name === 'task_create') && protoList.json?.some((t) => t.name === 'send_message'))
+const roster = await req('POST', '/api/internal/tools/call', {
+  agentId: protoAgent.json.id,
+  name: 'list_entities',
+  args: {},
+})
+check('list_entities returns the roster', roster.json?.content?.includes('ARCHON'))
+
+rmSync(toolDir, { recursive: true, force: true })
+
 // ── Cleanup ───────────────────────────────────────────────────────────
 
 const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)

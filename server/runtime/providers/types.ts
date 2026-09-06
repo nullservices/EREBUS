@@ -25,6 +25,10 @@ export interface StreamEvent {
 }
 
 export interface RunOptions {
+  /** Entity the run belongs to (tool execution + attribution). */
+  agentId: string
+  /** Base URL of this EREBUS server, for adapters that bridge back. */
+  erebusBaseUrl: string
   /** Full conversation so far (user/assistant turns), oldest first. */
   history: { role: 'user' | 'assistant'; content: string }[]
   /** The instruction that triggered this run. */

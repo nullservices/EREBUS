@@ -39,19 +39,25 @@ function getSessionByTokenHash(tokenHash: string): SessionRow | undefined {
     .get(tokenHash) as SessionRow | undefined
 }
 
-export function createSession(
-  event: H3Event,
-  userId: string,
-): string {
+/** Create a raw session token for a user (no cookie side effects). */
+export function createSessionToken(userId: string, userAgent?: string | null): string {
   const db = getDb()
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString()
-  const userAgent = event.headers.get('user-agent') ?? null
 
   db.prepare(
     `INSERT INTO sessions (id, token_hash, user_id, expires_at, user_agent)
      VALUES (?, ?, ?, ?, ?)`,
-  ).run(randomUUID(), sha256hex(token), userId, expiresAt, userAgent)
+  ).run(randomUUID(), sha256hex(token), userId, expiresAt, userAgent ?? null)
+  return token
+}
+
+export function createSession(
+  event: H3Event,
+  userId: string,
+): string {
+  const userAgent = event.headers.get('user-agent') ?? null
+  const token = createSessionToken(userId, userAgent)
 
   setCookie(event, SESSION_COOKIE, token, {
     httpOnly: true,
@@ -60,6 +66,14 @@ export function createSession(
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   })
   return token
+}
+
+/** The local operator account (single-user system). */
+export function operatorUserId(): string | null {
+  const row = getDb()
+    .prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1')
+    .get() as { id: string } | undefined
+  return row?.id ?? null
 }
 
 export function destroySessionToken(token: string | undefined): void {

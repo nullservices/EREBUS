@@ -1,10 +1,106 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { getDataDir } from '../../db'
+import { createSessionToken, destroySessionToken, operatorUserId } from '../../utils/auth'
 import { spawnProcess, stopProcess, type ManagedProcess } from '../process-manager'
 import type { Permissions, PermissionLevel, ToolId } from '../../../shared/types'
 import type { ProviderAdapter, RunOptions, RunResult, TestResult } from './types'
+
+/**
+ * Minimal MCP stdio bridge, generated into the data directory at runtime.
+ * Newline-delimited JSON-RPC; every tool call goes through the EREBUS
+ * permission gate via the internal API — the CLI never bypasses it.
+ */
+const MCP_BRIDGE_SOURCE = `// EREBUS MCP bridge — generated at runtime; do not edit.
+const BASE = process.env.EREBUS_URL || 'http://127.0.0.1:4521'
+const TOKEN = process.env.EREBUS_SESSION || ''
+const AGENT_ID = process.argv[2] || ''
+
+let buffer = ''
+process.stdin.setEncoding('utf8')
+process.stdin.on('data', (chunk) => {
+  buffer += chunk
+  let idx
+  while ((idx = buffer.indexOf('\\n')) >= 0) {
+    const line = buffer.slice(0, idx).trim()
+    buffer = buffer.slice(idx + 1)
+    if (line) void handle(line)
+  }
+})
+
+function send(payload) {
+  process.stdout.write(JSON.stringify(payload) + '\\n')
+}
+
+async function api(path, body) {
+  const res = await fetch(BASE + path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: 'erebus_session=' + TOKEN },
+    body: JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(json.message || 'EREBUS API ' + res.status)
+  return json
+}
+
+function fail(id, message) {
+  send({ jsonrpc: '2.0', id, error: { code: -32000, message } })
+}
+
+async function handle(line) {
+  let msg
+  try { msg = JSON.parse(line) } catch { return }
+  const { id, method, params } = msg
+
+  if (method === 'initialize') {
+    send({ jsonrpc: '2.0', id, result: {
+      protocolVersion: '2024-11-05',
+      capabilities: { tools: {} },
+      serverInfo: { name: 'erebus', version: '0.1.0' },
+    } })
+    return
+  }
+  if (method === 'notifications/initialized') return
+  if (method === 'ping') {
+    send({ jsonrpc: '2.0', id, result: {} })
+    return
+  }
+
+  if (method === 'tools/list') {
+    try {
+      const tools = await api('/api/internal/tools/list', { agentId: AGENT_ID, protocolOnly: true })
+      send({ jsonrpc: '2.0', id, result: { tools } })
+    } catch (err) {
+      fail(id, String(err && err.message ? err.message : err))
+    }
+    return
+  }
+
+  if (method === 'tools/call') {
+    try {
+      const data = await api('/api/internal/tools/call', {
+        agentId: AGENT_ID,
+        name: params && params.name,
+        args: (params && params.arguments) || {},
+      })
+      send({ jsonrpc: '2.0', id, result: {
+        content: [{ type: 'text', text: data.content }],
+        isError: Boolean(data.isError),
+      } })
+    } catch (err) {
+      send({ jsonrpc: '2.0', id, result: {
+        content: [{ type: 'text', text: 'tool failed: ' + (err && err.message ? err.message : err) }],
+        isError: true,
+      } })
+    }
+    return
+  }
+
+  send({ jsonrpc: '2.0', id, error: { code: -32601, message: 'method not found: ' + method } })
+}
+`
 
 /**
  * Resolve the best launchable Claude Code executable, cached per process:
@@ -108,6 +204,44 @@ function buildPermissionArgs(permissions: Permissions): { allowed: string[]; dis
   return { allowed, disallowed }
 }
 
+/**
+ * When the entity has the EREBUS protocol tools enabled, generate the MCP
+ * bridge + config and return the extra CLI args (plus the session token to
+ * clean up afterwards).
+ */
+function attachMcpBridge(options: RunOptions): { args: string[]; sessionToken: string | null } {
+  if (!options.tools?.includes('mcp')) {
+    return { args: [], sessionToken: null }
+  }
+
+  const userId = operatorUserId()
+  if (!userId) return { args: [], sessionToken: null }
+  const sessionToken = createSessionToken(userId, 'erebus-mcp-bridge')
+
+  const dataDir = getDataDir()
+  writeFileSync(join(dataDir, 'mcp-bridge.mjs'), MCP_BRIDGE_SOURCE, 'utf8')
+
+  const mcpConfig = {
+    mcpServers: {
+      erebus: {
+        command: process.execPath,
+        args: [join(dataDir, 'mcp-bridge.mjs'), options.agentId],
+        env: {
+          EREBUS_URL: options.erebusBaseUrl,
+          EREBUS_SESSION: sessionToken,
+        },
+      },
+    },
+  }
+  const configPath = join(dataDir, `mcp-${options.agentId}.json`)
+  writeFileSync(configPath, JSON.stringify(mcpConfig, null, 2), 'utf8')
+
+  return {
+    args: ['--mcp-config', configPath, '--allowedTools', 'mcp__erebus__*'],
+    sessionToken,
+  }
+}
+
 function buildArgs(options: RunOptions, model: string | null): string[] {
   const args = [
     '-p',
@@ -133,6 +267,16 @@ function buildArgs(options: RunOptions, model: string | null): string[] {
   const { allowed, disallowed } = buildPermissionArgs(options.permissions ?? {})
   for (const rule of allowed) args.push('--allowedTools', rule)
   for (const rule of disallowed) args.push('--disallowedTools', rule)
+
+  const bridge = attachMcpBridge(options)
+  args.push(...bridge.args)
+  options.signal.addEventListener(
+    'abort',
+    () => {
+      if (bridge.sessionToken) destroySessionToken(bridge.sessionToken)
+    },
+    { once: true },
+  )
 
   if (options.resumeSessionId) {
     args.push('--resume', options.resumeSessionId)
@@ -210,28 +354,48 @@ function adapter(): ProviderAdapter {
       }
 
       const args = buildArgs(wrapped, config.model)
-      const processRecord = await launchClaude(
-        args,
-        wrapped.workingDir || process.cwd(),
-        (record) => wireEvents(record, wrapped, state),
-        wrapped.onProcess,
-      )
-      const exitCode = processRecord.exitCode
-      const tail = processRecord.stderrRing
-
-      if (exitCode !== 0) {
-        const detail = tail.slice(-5).join('\n')
-        throw new Error(
-          `Claude Code exited with code ${exitCode ?? 'unknown'}${detail ? `: ${detail}` : ''}`,
-        )
+      let bridgeToken: string | null = null
+      const configArgIndex = args.indexOf('--mcp-config')
+      // The bridge token rides in the generated config's env — recover it
+      // from the config file to clean up after the run.
+      if (configArgIndex >= 0) {
+        try {
+          const configPath = args[configArgIndex + 1]
+          if (typeof configPath !== 'string') throw new Error('missing mcp config path')
+          const raw = JSON.parse(readFileSync(configPath, 'utf8')) as {
+            mcpServers?: { erebus?: { env?: { EREBUS_SESSION?: string } } }
+          }
+          bridgeToken = raw.mcpServers?.erebus?.env?.EREBUS_SESSION ?? null
+        } catch {
+          /* no bridge token — nothing to clean */
+        }
       }
+      try {
+        const processRecord = await launchClaude(
+          args,
+          wrapped.workingDir || process.cwd(),
+          (record) => wireEvents(record, wrapped, state),
+          wrapped.onProcess,
+        )
+        const exitCode = processRecord.exitCode
+        const tail = processRecord.stderrRing
 
-      return {
-        text,
-        sessionId: state.sessionId,
-        tokenUsageIn: state.usageIn,
-        tokenUsageOut: state.usageOut,
-        exitCode,
+        if (exitCode !== 0) {
+          const detail = tail.slice(-5).join('\n')
+          throw new Error(
+            `Claude Code exited with code ${exitCode ?? 'unknown'}${detail ? `: ${detail}` : ''}`,
+          )
+        }
+
+        return {
+          text,
+          sessionId: state.sessionId,
+          tokenUsageIn: state.usageIn,
+          tokenUsageOut: state.usageOut,
+          exitCode,
+        }
+      } finally {
+        if (bridgeToken) destroySessionToken(bridgeToken)
       }
     },
 

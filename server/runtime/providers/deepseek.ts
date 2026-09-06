@@ -1,26 +1,47 @@
 import { decryptSecret } from '../../utils/crypto'
+import { definitionsForEntity } from '../tools/definitions'
+import { executeToolCall } from '../tools/execute'
 import type { ModelOption } from '../../../shared/types'
 import type { ProviderRow } from '../../utils/models'
 import type { ProviderAdapter, RunOptions, RunResult, TestResult } from './types'
 
 /**
- * DeepSeek adapter — OpenAI-compatible chat completions over HTTP.
+ * DeepSeek adapter — OpenAI-compatible chat completions over HTTP, with a
+ * full agentic tool-calling loop.
  *
- * Streaming via SSE; the API key is decrypted server-side only and is
- * attached to the outgoing request. Never logged, never returned.
+ * The run streams assistant text; when the model emits tool calls, EREBUS
+ * executes them through the permission-gated ToolManager and feeds the
+ * results back until the model produces a final answer (bounded turns).
  */
 
 const DEFAULT_TIMEOUT_MS = 180_000
 const TEST_TIMEOUT_MS = 15_000
+const MAX_TOOL_TURNS = 10
 
-interface DeepSeekMessage {
-  role: 'system' | 'user' | 'assistant'
+type Role = 'system' | 'user' | 'assistant' | 'tool'
+
+interface ApiMessage {
+  role: Role
   content: string
+  tool_call_id?: string
+  tool_calls?: {
+    id: string
+    type: 'function'
+    function: { name: string; arguments: string }
+  }[]
 }
 
 interface ChatCompletionChunk {
   choices?: {
-    delta?: { content?: string | null }
+    delta?: {
+      content?: string | null
+      tool_calls?: {
+        index: number
+        id?: string
+        function?: { name?: string; arguments?: string }
+      }[]
+    }
+    finish_reason?: string | null
   }[]
   usage?: { prompt_tokens?: number; completion_tokens?: number }
 }
@@ -33,12 +54,21 @@ function apiKeyOf(config: ProviderRow): string {
   return key
 }
 
+interface StreamOutcome {
+  text: string
+  toolCalls: { id: string; name: string; arguments: string }[]
+  finishReason: string
+  input: number
+  output: number
+}
+
 async function streamChat(
   config: ProviderRow,
-  messages: DeepSeekMessage[],
+  messages: ApiMessage[],
+  tools: ReturnType<typeof definitionsForEntity>,
   signal: AbortSignal,
   onDelta: (delta: string) => void,
-): Promise<{ input: number; output: number }> {
+): Promise<StreamOutcome> {
   const res = await fetch(`${config.base_url.replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -48,6 +78,7 @@ async function streamChat(
     body: JSON.stringify({
       model: config.model || 'deepseek-chat',
       messages,
+      ...(tools.length ? { tools, tool_choice: 'auto' } : {}),
       stream: true,
       temperature: config.temperature,
       max_tokens: config.max_tokens,
@@ -59,8 +90,12 @@ async function streamChat(
     throw new Error(`DeepSeek API ${res.status}: ${text.slice(0, 300)}`)
   }
 
+  let text = ''
+  let finishReason = 'stop'
   let input = 0
   let output = 0
+  const toolCalls = new Map<number, { id: string; name: string; arguments: string }>()
+
   const reader = res.body?.getReader()
   if (!reader) throw new Error('DeepSeek API returned no response body')
 
@@ -83,15 +118,37 @@ async function streamChat(
       } catch {
         continue
       }
-      const delta = chunk.choices?.[0]?.delta?.content
-      if (delta) onDelta(delta)
+      const choice = chunk.choices?.[0]
+      if (!choice) continue
+
+      const delta = choice.delta?.content
+      if (delta) {
+        text += delta
+        onDelta(delta)
+      }
+      if (choice.finish_reason) finishReason = choice.finish_reason
+
+      for (const call of choice.delta?.tool_calls ?? []) {
+        const existing = toolCalls.get(call.index) ?? { id: '', name: '', arguments: '' }
+        if (call.id) existing.id = call.id
+        if (call.function?.name) existing.name = call.function.name
+        if (call.function?.arguments) existing.arguments += call.function.arguments
+        toolCalls.set(call.index, existing)
+      }
       if (chunk.usage) {
         input = chunk.usage.prompt_tokens ?? input
         output = chunk.usage.completion_tokens ?? output
       }
     }
   }
-  return { input, output }
+
+  return {
+    text,
+    toolCalls: [...toolCalls.values()].filter((c) => c.name),
+    finishReason,
+    input,
+    output,
+  }
 }
 
 function adapter(): ProviderAdapter {
@@ -99,34 +156,82 @@ function adapter(): ProviderAdapter {
     kind: 'deepseek',
 
     async run(config: ProviderRow, options: RunOptions): Promise<RunResult> {
-      const messages: DeepSeekMessage[] = [
+      const messages: ApiMessage[] = [
         ...(options.systemPrompt
           ? [{ role: 'system' as const, content: options.systemPrompt }]
           : []),
-        ...options.history.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        ...options.history.map((m) => ({ role: m.role, content: m.content })),
         { role: 'user' as const, content: options.instruction },
       ]
 
-      // Hard ceiling on the whole run; the runner also aborts on stop.
+      const tools = definitionsForEntity(options.tools ?? [])
+
       const controller = new AbortController()
       const forwardAbort = () => controller.abort()
       options.signal.addEventListener('abort', forwardAbort, { once: true })
       const hardTimeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
 
+      let totalInput = 0
+      let totalOutput = 0
+
       try {
-        let text = ''
-        const usage = await streamChat(config, messages, controller.signal, (delta) => {
-          text += delta
-          options.onEvent({ type: 'text', content: delta })
-        })
-        return {
-          text,
-          tokenUsageIn: usage.input || null,
-          tokenUsageOut: usage.output || null,
+        let finalText = ''
+        for (let turn = 0; turn <= MAX_TOOL_TURNS; turn++) {
+          const outcome = await streamChat(config, messages, tools, controller.signal, (delta) => {
+            finalText += delta
+            options.onEvent({ type: 'text', content: delta })
+          })
+          totalInput += outcome.input
+          totalOutput += outcome.output
+
+          if (outcome.toolCalls.length === 0 || outcome.finishReason !== 'tool_calls') {
+            return {
+              text: finalText || outcome.text,
+              tokenUsageIn: totalInput || null,
+              tokenUsageOut: totalOutput || null,
+            }
+          }
+          if (turn === MAX_TOOL_TURNS) {
+            throw new Error(`Tool loop exceeded ${MAX_TOOL_TURNS} turns`)
+          }
+
+          // Append the assistant tool-call message, execute each call,
+          // then feed the results back.
+          messages.push({
+            role: 'assistant',
+            content: '',
+            tool_calls: outcome.toolCalls.map((c) => ({
+              id: c.id,
+              type: 'function' as const,
+              function: { name: c.name, arguments: c.arguments },
+            })),
+          })
+          for (const call of outcome.toolCalls) {
+            options.onEvent({
+              type: 'status',
+              data: { tool: call.name, phase: 'working' },
+            })
+            let result: { content: string; isError: boolean }
+            try {
+              const parsed = JSON.parse(call.arguments || '{}') as Record<string, unknown>
+              result = await executeToolCall(options.agentId ?? '', call.name, parsed)
+            } catch (err) {
+              result = {
+                content: err instanceof Error ? err.message : String(err),
+                isError: true,
+              }
+            }
+            messages.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              content: result.isError ? `ERROR: ${result.content}` : result.content,
+            })
+            if (!result.isError) {
+              options.onEvent({ type: 'status', data: { phase: 'thinking' } })
+            }
+          }
         }
+        throw new Error('Tool loop ended without a final answer')
       } catch (err) {
         if (controller.signal.aborted && !options.signal.aborted) {
           throw new Error(`DeepSeek request exceeded ${DEFAULT_TIMEOUT_MS / 1000}s timeout`)
