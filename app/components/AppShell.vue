@@ -48,6 +48,7 @@ const VIEW_TITLES: Record<string, string> = {
   index: 'COMMAND',
   agents: 'ENTITIES',
   'agents-id': 'ENTITY',
+  tasks: 'TASKS',
   projects: 'PROJECTS',
   providers: 'PROVIDERS',
   settings: 'SYSTEM',
@@ -58,6 +59,7 @@ const viewTitle = computed(() => VIEW_TITLES[String(route.name)] ?? '')
 const NAV = [
   { to: '/', label: 'COMMAND' },
   { to: '/agents', label: 'ENTITIES' },
+  { to: '/tasks', label: 'TASKS' },
   { to: '/projects', label: 'PROJECTS' },
   { to: '/providers', label: 'PROVIDERS' },
   { to: '/settings', label: 'SYSTEM' },

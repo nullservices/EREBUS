@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Agent, Message, Project, Provider } from '~~/shared/types'
+import type { Agent, Message, Project, Provider, Task } from '~~/shared/types'
 
 const route = useRoute()
 const agentId = computed(() => String(route.params.id))
@@ -14,6 +14,15 @@ const { data: messages, refresh: refreshMessages } = await useFetch<Message[]>(
 const { data: sessions, refresh: refreshSessions } = await useFetch<SessionInfo[]>(
   `/api/agents/${agentId.value}/sessions`,
 )
+const { data: agentTasks, refresh: refreshTasks } = await useFetch<Task[]>(
+  `/api/agents/${agentId.value}/tasks?limit=50`,
+)
+
+const currentTask = computed(() => {
+  const list = agentTasks.value ?? []
+  const active = list.find((t) => t.status === 'IN_PROGRESS' || t.status === 'BLOCKED')
+  return active ?? list.find((t) => !['DONE', 'FAILED', 'CANCELLED'].includes(t.status)) ?? null
+})
 
 interface SessionInfo {
   id: string
@@ -51,6 +60,9 @@ watch(lastPayload, (payload) => {
     void refreshAgent()
     void refreshMessages()
     void refreshSessions()
+  }
+  if (payload.kind === 'event' && payload.event?.type.startsWith('task.')) {
+    void refreshTasks()
   }
 })
 
@@ -168,7 +180,12 @@ async function removeAgent() {
     </div>
 
     <!-- RIGHT · context -->
-    <ContextPanel :agent="agent" :children="children" :last-session="lastSession" />
+    <ContextPanel
+      :agent="agent"
+      :children="children"
+      :last-session="lastSession"
+      :current-task="currentTask"
+    />
 
     <Modal :open="showEdit" title="CONFIGURE ENTITY" @close="showEdit = false">
       <EntityForm

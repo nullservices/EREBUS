@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Agent } from '~~/shared/types'
+import type { Agent, Task } from '~~/shared/types'
 
 export interface SessionInfo {
   id: string
@@ -16,6 +16,7 @@ const props = defineProps<{
   agent: Agent
   children: Agent[]
   lastSession?: SessionInfo | null
+  currentTask?: Task | null
 }>()
 
 const TOOL_LABELS: Record<string, string> = {
@@ -68,7 +69,16 @@ function fmtDate(iso: string): string {
           </div>
           <div class="flex justify-between gap-3">
             <dt class="text-faint">CURRENT TASK</dt>
-            <dd class="truncate text-dim">—</dd>
+            <dd class="truncate text-dim">
+              <NuxtLink v-if="currentTask" to="/tasks" class="text-arcane-dim hover:text-arcane">
+                #{{ currentTask.number }}
+              </NuxtLink>
+              <span v-else>—</span>
+            </dd>
+          </div>
+          <div v-if="currentTask" class="flex justify-between gap-3">
+            <dt class="text-faint">TASK TITLE</dt>
+            <dd class="truncate text-right text-dim">{{ currentTask.title }}</dd>
           </div>
         </dl>
       </section>

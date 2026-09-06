@@ -267,6 +267,51 @@ const emptyChan = await req('POST', '/api/channels', {
 })
 check('channel without event categories rejected', emptyChan.status === 400)
 
+// ── Phase IV · task system ───────────────────────────────────────────
+
+const t1 = await req('POST', '/api/tasks', {
+  title: 'Implement inventory backend',
+  projectId: newProject.json?.id,
+  assignedAgentId: vesper.json?.id,
+  priority: 'HIGH',
+  status: 'TODO',
+})
+check('create task', t1.status === 200 && t1.json?.number >= 1, JSON.stringify(t1.json))
+check('task joins resolve', t1.json?.assignedAgentName === 'VESPER' && t1.json?.projectName === 'Second Project')
+
+const t2 = await req('POST', '/api/tasks', { title: 'Child task', parentId: t1.json.id })
+check('task hierarchy created', t2.status === 200 && t2.json?.parentNumber === t1.json?.number)
+
+const tCycle = await req('PATCH', `/api/tasks/${t1.json.id}`, { parentId: t2.json.id })
+check('task cycle rejected → 400', tCycle.status === 400)
+
+const badStatus = await req('POST', '/api/tasks', { title: 'Bad', status: 'NOPE' })
+check('unknown task status → 400', badStatus.status === 400)
+
+const tDone = await req('PATCH', `/api/tasks/${t1.json.id}`, { status: 'DONE', result: 'implemented' })
+check('task completion sets timestamps', tDone.status === 200 && Boolean(tDone.json?.completedAt))
+
+const tBlocked = await req('PATCH', `/api/tasks/${t1.json.id}`, { status: 'BLOCKED' })
+check('blocked clears completion', tBlocked.status === 200 && tBlocked.json?.completedAt === null)
+
+const agentTaskList = await req('GET', `/api/agents/${vesper.json.id}/tasks`)
+check('entity task list works', agentTaskList.status === 200 && agentTaskList.json?.some((t) => t.title === 'Implement inventory backend'))
+
+const taskFilter = await req('GET', `/api/tasks?projectId=${newProject.json.id}`)
+check(
+  'task project filter works',
+  taskFilter.status === 200 &&
+    taskFilter.json?.length === 1 &&
+    taskFilter.json?.[0]?.title === 'Implement inventory backend',
+  JSON.stringify(taskFilter.json),
+)
+
+const dashWithTasks = await req('GET', '/api/dashboard')
+check('dashboard carries task stats', dashWithTasks.status === 200 && dashWithTasks.json?.tasks?.total === 2)
+
+const tDelete = await req('DELETE', `/api/tasks/${t2.json.id}`)
+check('task deletion works', tDelete.status === 200 && tDelete.json?.ok === true)
+
 // ── Phase II · agent runtime ─────────────────────────────────────────
 
 // No provider → start refuses.

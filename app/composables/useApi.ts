@@ -9,10 +9,14 @@ export interface ApiError {
  * Typed API client. Every call is same-origin (cookies ride along) and
  * failures are normalized into an ApiError with a readable message.
  */
-export function useApi() {
-  const api = $fetch.create({ baseURL: '/api' })
+type PlainFetch = (path: string, options?: Record<string, unknown>) => Promise<unknown>
 
-  async function request<T>(path: string, options: Parameters<typeof api>[1] = {}): Promise<T> {
+export function useApi() {
+  // Plain signature on purpose: nitro's typed-route inference over the full
+  // API surface overflows the type checker, and callers declare T anyway.
+  const api = $fetch.create({ baseURL: '/api' }) as unknown as PlainFetch
+
+  async function request<T>(path: string, options?: Record<string, unknown>): Promise<T> {
     try {
       return (await api(path, options)) as T
     } catch (err) {

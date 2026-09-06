@@ -18,6 +18,9 @@ const waiting = computed(
     (stats.value?.agents.byStatus.WAITING ?? 0) +
     (stats.value?.agents.byStatus.BLOCKED ?? 0),
 )
+const activeTasks = computed(() => stats.value?.tasks.active ?? 0)
+const blockedTasks = computed(() => stats.value?.tasks.blocked ?? 0)
+const doneTasks = computed(() => stats.value?.tasks.done ?? 0)
 
 const today = new Date().toLocaleDateString('en-GB', {
   day: '2-digit',
@@ -42,7 +45,13 @@ const today = new Date().toLocaleDateString('en-GB', {
         <StatTile label="WORKING" :value="working" sub="ACTIVE RUNTIMES" />
         <StatTile label="WAITING" :value="waiting" sub="OR BLOCKED" />
         <StatTile label="PROJECTS" :value="stats?.projects ?? 0" sub="REGISTERED" />
-        <StatTile label="TASKS" value="—" sub="PHASE IV" />
+        <NuxtLink to="/tasks" class="block">
+          <StatTile
+            label="TASKS"
+            :value="activeTasks"
+            :sub="`${blockedTasks} BLOCKED · ${doneTasks} DONE`"
+          />
+        </NuxtLink>
       </div>
 
       <div class="grid gap-8 lg:grid-cols-[1fr_320px]">

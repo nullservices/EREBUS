@@ -22,9 +22,30 @@ export default defineEventHandler((event): DashboardStats => {
 
   const { c: projects } = db.prepare('SELECT COUNT(*) AS c FROM projects').get() as { c: number }
 
+  const taskRows = db
+    .prepare('SELECT status, COUNT(*) AS c FROM tasks GROUP BY status')
+    .all() as { status: string; c: number }[]
+  const tasksByStatus: Record<string, number> = {}
+  let tasksActive = 0
+  let tasksBlocked = 0
+  let tasksDone = 0
+  for (const row of taskRows) {
+    tasksByStatus[row.status] = row.c
+    if (row.status === 'BLOCKED') tasksBlocked += row.c
+    else if (row.status === 'DONE') tasksDone += row.c
+    else if (row.status !== 'FAILED' && row.status !== 'CANCELLED') tasksActive += row.c
+  }
+
   return {
     agents: { total, online, byStatus },
     projects,
+    tasks: {
+      total: taskRows.reduce((sum, r) => sum + r.c, 0),
+      active: tasksActive,
+      blocked: tasksBlocked,
+      done: tasksDone,
+      byStatus: tasksByStatus,
+    },
     recentEvents: listEvents({ limit: 15 }),
   }
 })

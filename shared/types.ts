@@ -92,6 +92,43 @@ export interface Channel {
   updatedAt: string
 }
 
+export const TASK_STATUSES = [
+  'BACKLOG',
+  'TODO',
+  'IN_PROGRESS',
+  'BLOCKED',
+  'REVIEW',
+  'QA',
+  'DONE',
+  'FAILED',
+  'CANCELLED',
+] as const
+export type TaskStatus = (typeof TASK_STATUSES)[number]
+
+export const TASK_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'CRITICAL'] as const
+export type TaskPriority = (typeof TASK_PRIORITIES)[number]
+
+export interface Task {
+  id: string
+  number: number
+  projectId: string | null
+  projectName: string | null
+  parentId: string | null
+  parentNumber: number | null
+  parentTitle: string | null
+  title: string
+  description: string
+  status: TaskStatus
+  priority: TaskPriority
+  createdBy: string
+  assignedAgentId: string | null
+  assignedAgentName: string | null
+  result: string
+  createdAt: string
+  updatedAt: string
+  completedAt: string | null
+}
+
 export interface Agent {
   id: string
   name: string
@@ -142,6 +179,13 @@ export interface DashboardStats {
     byStatus: Record<string, number>
   }
   projects: number
+  tasks: {
+    total: number
+    active: number
+    blocked: number
+    done: number
+    byStatus: Record<string, number>
+  }
   recentEvents: EventRecord[]
 }
 

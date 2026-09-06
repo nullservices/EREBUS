@@ -111,6 +111,32 @@ CREATE INDEX idx_events_type ON events(type);
 `,
   },
   {
+    version: 5,
+    name: 'tasks',
+    sql: `
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  number INTEGER NOT NULL UNIQUE,
+  project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+  parent_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'TODO',
+  priority TEXT NOT NULL DEFAULT 'NORMAL',
+  created_by TEXT NOT NULL DEFAULT 'operator',
+  assigned_agent_id TEXT REFERENCES agents(id) ON DELETE SET NULL,
+  result TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  completed_at TEXT
+);
+CREATE INDEX idx_tasks_project ON tasks(project_id, status);
+CREATE INDEX idx_tasks_agent ON tasks(assigned_agent_id, status);
+CREATE INDEX idx_tasks_parent ON tasks(parent_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
+`,
+  },
+  {
     version: 4,
     name: 'notification-channels',
     sql: `
