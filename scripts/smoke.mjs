@@ -558,6 +558,51 @@ check('list_entities returns the roster', roster.json?.content?.includes('ARCHON
 
 rmSync(toolDir, { recursive: true, force: true })
 
+// ── Phase VII · security ──────────────────────────────────────────────
+
+const secGet = await req('GET', '/api/system/security')
+check('security policy readable', secGet.status === 200 && Array.isArray(secGet.json?.denyPatterns))
+
+const secPatch = await req('PATCH', '/api/system/security', {
+  denyPatterns: [...secGet.json.denyPatterns, String.raw`echo\s+blocked`],
+})
+check('security policy updatable', secPatch.status === 200 && secPatch.json?.denyPatterns?.length === secGet.json.denyPatterns.length + 1)
+
+const blockedCmd = await req('POST', '/api/internal/tools/call', {
+  agentId: toolAgent.json.id,
+  name: 'terminal',
+  args: { command: 'echo blocked-word' },
+})
+check(
+  'deny pattern blocks command',
+  blockedCmd.json?.isError === true && /blocked by operator policy/i.test(blockedCmd.json?.content ?? ''),
+  JSON.stringify(blockedCmd.json),
+)
+
+await req('PATCH', '/api/system/security', { denyPatterns: secGet.json.denyPatterns })
+
+// Login throttling — use a throwaway username so the operator is unaffected.
+let throttled = false
+for (let i = 0; i < 6; i++) {
+  const r = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username: 'nobody', password: 'wrong-pass' }),
+  })
+  if (r.status === 429) {
+    throttled = true
+    break
+  }
+}
+check('login throttling kicks in after repeated failures', throttled)
+
+const headerRes = await fetch(`${BASE}/api/status`)
+check(
+  'security headers present',
+  headerRes.headers.get('x-content-type-options') === 'nosniff' &&
+    headerRes.headers.get('x-frame-options') === 'DENY',
+)
+
 // ── Cleanup ───────────────────────────────────────────────────────────
 
 const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)

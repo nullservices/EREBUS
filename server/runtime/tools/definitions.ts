@@ -21,6 +21,8 @@ export interface ToolDefinition {
   /** Entity permission key gating this tool. */
   permission: ToolId
   mutating: boolean
+  /** Destructive tools need approval under the 'auto' policy level. */
+  destructive: boolean
 }
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -34,6 +36,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'filesystem',
     mutating: false,
+    destructive: false,
   },
   {
     name: 'fs_write',
@@ -48,6 +51,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'filesystem',
     mutating: true,
+    destructive: true,
   },
   {
     name: 'fs_list',
@@ -59,6 +63,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'filesystem',
     mutating: false,
+    destructive: false,
   },
   {
     name: 'git',
@@ -71,6 +76,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'git',
     mutating: true,
+    destructive: true,
   },
   {
     name: 'terminal',
@@ -86,6 +92,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'terminal',
     mutating: true,
+    destructive: true,
   },
   {
     name: 'list_entities',
@@ -93,6 +100,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: { type: 'object', properties: {}, required: [] },
     permission: 'mcp',
     mutating: false,
+    destructive: false,
   },
   {
     name: 'task_create',
@@ -110,6 +118,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'mcp',
     mutating: true,
+    destructive: false,
   },
   {
     name: 'task_update',
@@ -125,6 +134,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'mcp',
     mutating: true,
+    destructive: false,
   },
   {
     name: 'task_list',
@@ -139,6 +149,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'mcp',
     mutating: false,
+    destructive: false,
   },
   {
     name: 'send_message',
@@ -153,6 +164,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'mcp',
     mutating: true,
+    destructive: false,
   },
   {
     name: 'ask_operator',
@@ -168,6 +180,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
     permission: 'mcp',
     mutating: true,
+    destructive: false,
   },
 ]
 
@@ -179,14 +192,22 @@ export function definitionByName(name: string): ToolDefinition | undefined {
   return TOOL_DEFINITIONS.find((d) => d.name === name)
 }
 
-/** Whether a permission level allows a tool to run without approval. */
+/** Whether a permission level allows a tool to run at all. */
 export function levelAllows(level: PermissionLevel | undefined, definition: ToolDefinition): boolean {
   if (!level || level === 'deny') return false
-  if (definition.mutating) return level === 'allow' || level === 'ask'
-  return level === 'allow' || level === 'readonly' || level === 'ask'
+  if (definition.mutating) {
+    return level !== 'readonly'
+  }
+  return true
 }
 
-/** Whether this tool needs explicit operator approval before running. */
+/**
+ * Whether this tool needs explicit operator approval before running.
+ * ask → every time; auto → destructive operations only (the spec's
+ * "ask for destructive operations only" policy).
+ */
 export function levelNeedsApproval(level: PermissionLevel | undefined, definition: ToolDefinition): boolean {
-  return level === 'ask'
+  if (level === 'ask') return true
+  if (level === 'auto') return definition.destructive
+  return false
 }

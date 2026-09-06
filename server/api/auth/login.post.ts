@@ -2,6 +2,7 @@ import { getDb } from '../../db'
 import { createSession } from '../../utils/auth'
 import { verifyPassword } from '../../utils/crypto'
 import { logEvent } from '../../utils/events'
+import { checkLoginThrottle, recordLoginFailure, resetLoginFailures } from '../../runtime/security'
 import { asString } from '../../utils/validate'
 
 interface LoginBody {
@@ -14,6 +15,8 @@ export default defineEventHandler(async (event) => {
   const username = asString(body.username, 'username', { required: true })
   const password = asString(body.password, 'password', { required: true })
 
+  checkLoginThrottle(username)
+
   const db = getDb()
   const row = db
     .prepare('SELECT id, username, password_hash FROM users WHERE username = ?')
@@ -21,8 +24,12 @@ export default defineEventHandler(async (event) => {
 
   // Same error whether the user or the password is wrong.
   if (!row || !(await verifyPassword(password, row.password_hash))) {
+    recordLoginFailure(username)
+    logEvent({ type: 'auth.login-failed', summary: `failed sign-in for ${username}` })
     throw createError({ statusCode: 401, message: 'Invalid username or password' })
   }
+
+  resetLoginFailures(username)
 
   db.prepare(
     "UPDATE users SET last_login_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",

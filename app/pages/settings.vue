@@ -3,6 +3,35 @@ import type { Channel, SystemInfo } from '~~/shared/types'
 
 const { data: info } = await useFetch<SystemInfo>('/api/system/info')
 const { data: channels, refresh: refreshChannels } = await useFetch<Channel[]>('/api/channels')
+const { data: security, refresh: refreshSecurity } = await useFetch<{ denyPatterns: string[] }>(
+  '/api/system/security',
+)
+
+const denyPatternsText = ref('')
+watchEffect(() => {
+  if (security.value && denyPatternsText.value === '') {
+    denyPatternsText.value = (security.value.denyPatterns ?? []).join('\n')
+  }
+})
+const securityBusy = ref(false)
+const securityError = ref('')
+const securityDone = ref('')
+
+async function saveDenyPatterns() {
+  securityError.value = ''
+  securityDone.value = ''
+  const patterns = denyPatternsText.value.split('\n').map((p) => p.trim()).filter(Boolean)
+  securityBusy.value = true
+  try {
+    await request('/system/security', { method: 'PATCH', body: { denyPatterns: patterns } })
+    await refreshSecurity()
+    securityDone.value = 'Command restrictions updated.'
+  } catch (err) {
+    securityError.value = (err as { message: string }).message
+  } finally {
+    securityBusy.value = false
+  }
+}
 
 const { request } = useApi()
 const passwordBusy = ref(false)
@@ -191,6 +220,24 @@ const EVENT_LABELS: Record<string, string> = {
               </div>
             </div>
           </div>
+        </section>
+
+        <section class="panel p-6">
+          <h2 class="label mb-4">COMMAND RESTRICTIONS</h2>
+          <p class="mb-3 font-mono text-[10px] leading-relaxed tracking-[0.08em] text-faint">
+            TERMINAL COMMANDS MATCHING ANY REGEX PATTERN ARE REFUSED BEFORE
+            EXECUTION. ONE PATTERN PER LINE.
+          </p>
+          <textarea
+            v-model="denyPatternsText"
+            rows="6"
+            class="field resize-y font-mono text-[11px] leading-relaxed"
+          />
+          <div v-if="securityError" class="mt-2 font-mono text-[11px] text-blood">{{ securityError }}</div>
+          <div v-if="securityDone" class="mt-2 font-mono text-[11px] text-moss">{{ securityDone }}</div>
+          <button class="btn btn-primary mt-3" :disabled="securityBusy" @click="saveDenyPatterns">
+            SAVE RESTRICTIONS
+          </button>
         </section>
 
         <section class="panel p-6">

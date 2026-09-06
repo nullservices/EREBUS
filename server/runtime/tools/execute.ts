@@ -9,6 +9,7 @@ import { createIntervention, resolveIntervention } from '../interventions'
 import { setAgentStatus } from '../agent-status'
 import { logEvent } from '../../utils/events'
 import { logTaskEvent, nextTaskNumber, serializeTask, TASK_SELECT, type TaskRow } from '../../utils/tasks'
+import { deniedCommandPattern } from '../security'
 import { definitionByName, levelAllows, levelNeedsApproval } from './definitions'
 import type { Agent } from '../../../shared/types'
 
@@ -139,6 +140,17 @@ async function executeGit(agent: Agent, input: { args?: string }): Promise<ToolR
 async function executeTerminal(agent: Agent, input: { command?: string; timeout_ms?: string }): Promise<ToolResult> {
   const command = String(input.command ?? '').trim()
   if (!command) throw new Error('terminal requires a command')
+
+  const deniedBy = deniedCommandPattern(command)
+  if (deniedBy) {
+    logEvent({
+      type: 'agent.tool_blocked',
+      agentId: agent.id,
+      summary: `blocked command from ${agent.name} (policy match)`,
+    })
+    return { content: `command blocked by operator policy (pattern: ${deniedBy})`, isError: true }
+  }
+
   const timeoutMs = Math.min(Math.max(Number(input.timeout_ms) || 30_000, 1000), 60_000)
   const result = await runCommand('powershell.exe', ['-NoProfile', '-Command', command], agent.workingDir || process.cwd(), timeoutMs)
   const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim()

@@ -43,7 +43,7 @@ const TOOL_OPTIONS: { id: ToolId; label: string }[] = [
   { id: 'network', label: 'NETWORK' },
   { id: 'mcp', label: 'MCP' },
 ]
-const PERMISSION_LEVELS: PermissionLevel[] = ['allow', 'ask', 'readonly', 'deny']
+const PERMISSION_LEVELS: PermissionLevel[] = ['allow', 'auto', 'ask', 'readonly', 'deny']
 
 const TEMPLATES = [
   {

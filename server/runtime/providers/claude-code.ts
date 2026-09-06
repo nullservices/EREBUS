@@ -186,6 +186,8 @@ function buildPermissionArgs(permissions: Permissions): { allowed: string[]; dis
   } else if (level('filesystem') === 'deny') {
     disallowed.push('Edit', 'Write')
   }
+  // 'ask' and 'auto' get no CLI grants — the CLI auto-denies headlessly,
+  // which is the conservative reading of both levels there.
 
   if (level('git') === 'allow') {
     allowed.push('Bash(git *)')

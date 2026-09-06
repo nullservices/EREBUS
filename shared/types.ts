@@ -24,7 +24,7 @@ export type ProviderKind = (typeof PROVIDER_KINDS)[number]
 export const TOOL_IDS = ['filesystem', 'git', 'terminal', 'network', 'mcp'] as const
 export type ToolId = (typeof TOOL_IDS)[number]
 
-export const PERMISSION_LEVELS = ['allow', 'ask', 'readonly', 'deny'] as const
+export const PERMISSION_LEVELS = ['allow', 'auto', 'ask', 'readonly', 'deny'] as const
 export type PermissionLevel = (typeof PERMISSION_LEVELS)[number]
 export type Permissions = Partial<Record<ToolId, PermissionLevel>>
 

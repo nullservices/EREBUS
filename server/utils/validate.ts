@@ -35,7 +35,7 @@ export function nullableString(
 }
 
 const TOOL_ID_SET = new Set<string>(['filesystem', 'git', 'terminal', 'network', 'mcp'])
-const PERMISSION_LEVEL_SET = new Set<string>(['allow', 'ask', 'readonly', 'deny'])
+const PERMISSION_LEVEL_SET = new Set<string>(['allow', 'auto', 'ask', 'readonly', 'deny'])
 
 /** Validate a tools array from the client; default when absent. */
 export function parseTools(value: unknown): ToolId[] {
