@@ -43,18 +43,19 @@ keep working after the browser closes.
 
 ---
 
-## Status — Phase II · Agent runtime
+## Status — All phases complete
 
 | | |
 |---|---|
 | ✅ Operator account, sessions, first-run initialization | ✅ Entity runtime: START / STOP / RESTART |
-| ✅ Projects · entities · hierarchy · tools · permissions | ✅ DeepSeek adapter — streaming API runs |
-| ✅ Providers with **encrypted** API keys | ✅ Claude Code adapter — headless CLI runs |
+| ✅ Projects · entities · hierarchy · tools · permissions | ✅ DeepSeek adapter — streaming + tool-calling loop |
+| ✅ Providers with **encrypted** API keys | ✅ Claude Code adapter — headless CLI + MCP bridge |
 | ✅ Persistent conversations with streamed replies | ✅ Runtime sessions + token usage |
-| ✅ Global activity log · command dashboard | ✅ Real provider connection tests |
-| ✅ **Model dropdowns** — live from provider or curated | ✅ **Notification channels** — Discord · ntfy · webhooks |
-| ⬜ Realtime WebSockets (Phase III) | ⬜ Task system + board (Phase IV) |
-| ⬜ Orchestration & agent-to-agent (Phase V) | ⬜ Approval system (Phase VII) |
+| ✅ **Realtime WebSockets** — events + statuses pushed | ✅ **Task system** — kanban board, hierarchy, drag-drop |
+| ✅ **Orchestration** — @MENTION delegation, @OPERATOR | ✅ **Human intervention** — WAITING_FOR_HUMAN + answers |
+| ✅ **Tools** — fs/git/terminal + protocol tools, gated | ✅ **Approvals** — allow/auto/ask/readonly/deny |
+| ✅ **Notifications** — Discord · ntfy · webhooks | ✅ **Search, Ctrl+K palette, toasts, JSONL logs** |
+| ✅ Model dropdowns — live from provider or curated | ✅ Login throttling, command restrictions, headers |
 
 Entities show `OFFLINE` until their runtime is started — every status,
 streamed word, tool row and error comes from the actual runtime. Nothing is
@@ -188,7 +189,12 @@ Agent working directories will benefit from the same treatment.
 ```
 PHASE I ▸ FOUNDATION       COMPLETE
 PHASE II ▸ AGENT RUNTIME   COMPLETE
-PHASE III ▸ REALTIME       NEXT
+PHASE III ▸ REALTIME       COMPLETE
+PHASE IV ▸ TASKS           COMPLETE
+PHASE V ▸ ORCHESTRATION    COMPLETE
+PHASE VI ▸ TOOLS           COMPLETE
+PHASE VII ▸ SECURITY       COMPLETE
+PHASE VIII ▸ POLISH        COMPLETE
 ```
 
 *Built for one machine. Commanded from anywhere in the house.*
