@@ -41,7 +41,7 @@ export default defineNuxtConfig({
     host: '127.0.0.1',
     port: 4521,
     public: {
-      version: '0.1.0',
+      version: '1.0.0',
     },
   },
 

@@ -58,7 +58,7 @@ async function handle(line) {
     send({ jsonrpc: '2.0', id, result: {
       protocolVersion: '2024-11-05',
       capabilities: { tools: {} },
-      serverInfo: { name: 'erebus', version: '0.1.0' },
+      serverInfo: { name: 'erebus', version: '1.0.0' },
     } })
     return
   }

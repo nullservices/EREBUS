@@ -2,6 +2,7 @@
 definePageMeta({ layout: 'auth' })
 
 const { request } = useApi()
+const version = useRuntimeConfig().public.version as string
 const username = ref('')
 const password = ref('')
 const busy = ref(false)
@@ -69,7 +70,7 @@ async function submit() {
     </div>
 
     <p class="mt-6 text-center font-mono text-[9.5px] tracking-[0.25em] text-faint/60">
-      LOCAL COMMAND PLATFORM · v0.1.0
+      LOCAL COMMAND PLATFORM · v{{ version }}
     </p>
   </div>
 </template>

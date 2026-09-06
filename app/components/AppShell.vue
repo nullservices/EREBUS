@@ -4,6 +4,7 @@ import type { Agent, Project } from '~~/shared/types'
 const route = useRoute()
 const { request } = useApi()
 const { selectedProjectId } = useErebusState()
+const version = useRuntimeConfig().public.version as string
 
 const { data: agents, refresh: refreshAgents } = await useFetch<Agent[]>('/api/agents')
 const { data: projects } = await useFetch<Project[]>('/api/projects')
@@ -252,7 +253,7 @@ watch(
           >
             CTRL K
           </button>
-          <span class="hidden font-mono text-[10px] tracking-[0.2em] text-faint md:inline">v0.1.0</span>
+          <span class="hidden font-mono text-[10px] tracking-[0.2em] text-faint md:inline">v{{ version }}</span>
         </div>
       </header>
       <main class="min-h-0 flex-1 overflow-hidden">

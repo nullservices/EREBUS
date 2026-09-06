@@ -1,6 +1,6 @@
 {
   "name": "erebus",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "EREBUS — local autonomous AI agent command platform",
   "type": "module",
