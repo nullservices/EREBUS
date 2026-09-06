@@ -8,6 +8,7 @@ const STATUS_COLORS: Record<string, string> = {
   THINKING: 'bg-arcane',
   WORKING: 'bg-arcane',
   WAITING: 'bg-arcane-dim',
+  WAITING_FOR_HUMAN: 'bg-arcane',
   BLOCKED: 'bg-blood',
   ERROR: 'bg-blood',
   COMPLETED: 'bg-moss',

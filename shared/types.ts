@@ -10,6 +10,7 @@ export const AGENT_STATUSES = [
   'THINKING',
   'WORKING',
   'WAITING',
+  'WAITING_FOR_HUMAN',
   'BLOCKED',
   'ERROR',
   'COMPLETED',
@@ -154,11 +155,27 @@ export interface Agent {
 export interface Message {
   id: string
   agentId: string
+  /** Entity that sent this message, when it was sent by an entity. */
+  senderAgentId: string | null
+  senderAgentName: string | null
   role: MessageRole
   kind: MessageKind
   content: string
   meta: Record<string, unknown> | null
   createdAt: string
+}
+
+export interface Intervention {
+  id: string
+  agentId: string
+  sessionId: string | null
+  kind: 'input' | 'approval'
+  prompt: string
+  options: string[] | null
+  status: 'PENDING' | 'RESOLVED' | 'EXPIRED'
+  resolution: string | null
+  createdAt: string
+  resolvedAt: string | null
 }
 
 export interface EventRecord {

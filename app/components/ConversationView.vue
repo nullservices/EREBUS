@@ -19,6 +19,13 @@ const META_LABELS: Record<string, string> = {
   error: 'ERROR',
 }
 
+function labelFor(message: Message): string {
+  if (message.role === 'agent' && message.senderAgentName) {
+    return `${message.senderAgentName} → ${props.agent.name}`
+  }
+  return META_LABELS[message.role] ?? message.role.toUpperCase()
+}
+
 function isMetaRow(message: Message): boolean {
   return message.kind === 'event' || message.role === 'system' || message.role === 'tool'
 }
@@ -76,7 +83,7 @@ function isMetaRow(message: Message): boolean {
               class="font-mono text-[10px] tracking-[0.22em]"
               :class="message.role === 'user' ? 'text-arcane-dim' : 'text-dim'"
             >
-              {{ META_LABELS[message.role] ?? message.role.toUpperCase() }}
+              {{ labelFor(message) }}
             </span>
             <span class="font-mono text-[10px] tabular-nums text-faint">{{ timeOf(message.createdAt) }}</span>
           </div>

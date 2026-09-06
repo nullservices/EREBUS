@@ -1,6 +1,6 @@
 import { getDb } from '../../../db'
 import { requireUser } from '../../../utils/auth'
-import { serializeMessage, type MessageRow } from '../../../utils/models'
+import { serializeMessage, MESSAGE_SELECT, type MessageRow } from '../../../utils/models'
 import { asString } from '../../../utils/validate'
 
 /** Conversation history for one entity, oldest first. */
@@ -19,8 +19,8 @@ export default defineEventHandler((event) => {
 
   const rows = db
     .prepare(
-      `SELECT * FROM messages WHERE agent_id = ?
-       ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`,
+      `${MESSAGE_SELECT} WHERE m.agent_id = ?
+       ORDER BY m.created_at ASC, m.id ASC LIMIT ? OFFSET ?`,
     )
     .all(id, limit, offset) as MessageRow[]
 

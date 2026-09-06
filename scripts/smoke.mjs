@@ -395,6 +395,61 @@ check('kind-based catalog works', openaiModels.status === 200 && openaiModels.js
 const badKind = await req('GET', '/api/providers/models?kind=bogus')
 check('unknown kind → 400', badKind.status === 400)
 
+// ── Phase V · orchestration & human intervention ─────────────────────
+
+// ARCHON sends a message carrying the communication protocol.
+const agentMsg = await req('POST', `/api/agents/${vesper.json.id}/messages`, {
+  senderAgentId: archonId,
+  content: '@NO_PROVIDER verify the inventory API\n@OPERATOR which approach should we use for inventory?',
+})
+check('agent-to-agent message recorded with sender', agentMsg.status === 200 && agentMsg.json?.senderAgentId === archonId)
+
+const vesperThread2 = await req('GET', `/api/agents/${vesper.json.id}/messages`)
+check('thread exposes sender name', vesperThread2.json?.some((m) => m.senderAgentId === archonId && m.senderAgentName === 'ARCHON'))
+
+const noProviderThread = await req('GET', `/api/agents/${bare.json.id}/messages`)
+check(
+  'delegation delivered to target entity',
+  noProviderThread.json?.some((m) => m.content.includes('verify the inventory API') && m.senderAgentName === 'ARCHON'),
+  JSON.stringify(noProviderThread.json),
+)
+
+// Operator question → intervention raised on the asking entity (ARCHON).
+const pendingList = await req('GET', '/api/interventions?status=PENDING')
+const archonIntervention = pendingList.json?.find((i) => i.agentId === archonId)
+check('operator question raises intervention', Boolean(archonIntervention), JSON.stringify(pendingList.json))
+
+const archonPaused = await req('GET', `/api/agents/${archonId}`)
+check('entity paused at WAITING_FOR_HUMAN', archonPaused.json?.status === 'WAITING_FOR_HUMAN')
+
+const resolved = await req('PATCH', `/api/interventions/${archonIntervention.id}`, {
+  resolution: 'Use approach A',
+})
+check('intervention resolves', resolved.status === 200 && resolved.json?.status === 'RESOLVED')
+
+const archonAfter = await req('GET', `/api/agents/${archonId}`)
+check('entity returns to OFFLINE when not started', archonAfter.json?.status === 'OFFLINE')
+
+const archonThread = await req('GET', `/api/agents/${archonId}/messages`)
+check(
+  'operator answer injected into history',
+  archonThread.json?.some((m) => m.content === 'OPERATOR: Use approach A'),
+)
+
+const interventionCreate = await req('POST', `/api/agents/${vesper.json.id}/interventions`, {
+  prompt: 'Pick a color',
+  options: ['red', 'blue'],
+})
+check(
+  'intervention creation API works',
+  interventionCreate.status === 200 && interventionCreate.json?.options?.length === 2,
+)
+
+const doubleResolve = await req('PATCH', `/api/interventions/${archonIntervention.id}`, {
+  resolution: 'again',
+})
+check('double resolution → 409', doubleResolve.status === 409)
+
 // ── Cleanup ───────────────────────────────────────────────────────────
 
 const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)

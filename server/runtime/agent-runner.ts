@@ -4,8 +4,10 @@ import { logEvent } from '../utils/events'
 import { getAgentById, type ProviderRow } from '../utils/models'
 import { createAdapterFor } from './providers/types'
 import { stopProcess, type ManagedProcess } from './process-manager'
-import { broadcast } from './realtime'
-import type { Agent, AgentStatus } from '../../shared/types'
+import { setAgentStatus } from './agent-status'
+import { pendingInterventionsFor } from './interventions'
+import { processAgentOutput } from './orchestration'
+import type { Agent } from '../../shared/types'
 
 /**
  * Agent runtime — the bridge between entities, providers and host processes.
@@ -20,7 +22,7 @@ import type { Agent, AgentStatus } from '../../shared/types'
 
 interface ActiveRunner {
   agentId: string
-  state: 'idle' | 'busy' | 'stopping'
+  state: 'idle' | 'busy' | 'waiting' | 'stopping'
   abort: AbortController | null
   sessionId: string | null
   processes: ManagedProcess[]
@@ -31,15 +33,6 @@ const queues = new Map<string, { messageId: string; content: string }[]>()
 
 export function isAgentStarted(agentId: string): boolean {
   return runners.has(agentId)
-}
-
-function setAgentStatus(agentId: string, status: AgentStatus): void {
-  getDb()
-    .prepare(
-      "UPDATE agents SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
-    )
-    .run(status, agentId)
-  broadcast({ kind: 'agent.status', agentId, status })
 }
 
 function getProviderRowForAgent(agent: Agent): ProviderRow | undefined {
@@ -165,18 +158,38 @@ async function processQueue(agentId: string): Promise<void> {
   if (!runner) return
 
   for (;;) {
+    if (stateOf(runner) === 'stopping') return
+
+    // Unresolved operator requests pause the queue until answered.
+    if (pendingInterventionsFor(agentId).length > 0) {
+      runner.state = 'waiting'
+      setAgentStatus(agentId, 'WAITING_FOR_HUMAN')
+      return
+    }
+    if (stateOf(runner) === 'waiting') return
+
     const queue = queues.get(agentId) ?? []
     const next = queue.shift()
     queues.set(agentId, queue)
-    if (!next || stateOf(runner) === 'stopping') return
+    if (!next) return
 
     runner.state = 'busy'
     try {
       await runInstruction(agentId, runner, next)
     } finally {
-      if (stateOf(runner) !== 'stopping') runner.state = 'idle'
+      if (stateOf(runner) !== 'stopping' && stateOf(runner) !== 'waiting') {
+        runner.state = 'idle'
+      }
     }
   }
+}
+
+/** Called by the intervention API after the operator resolves a request. */
+export function resumeAgentQueue(agentId: string): void {
+  const runner = runners.get(agentId)
+  if (!runner || stateOf(runner) !== 'waiting') return
+  runner.state = 'idle'
+  void processQueue(agentId)
 }
 
 async function runInstruction(
@@ -275,6 +288,10 @@ async function runInstruction(
       agentId,
       summary: `entity ${agent.name} completed a task`,
     })
+
+    // Honor the communication protocol in the finished output
+    // (delegations to other entities, operator questions).
+    processAgentOutput(agentId, result.text)
   } catch (err) {
     if (stateOf(runner) === 'stopping') return
     const message = err instanceof Error ? err.message : String(err)

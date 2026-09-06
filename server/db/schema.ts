@@ -111,6 +111,28 @@ CREATE INDEX idx_events_type ON events(type);
 `,
   },
   {
+    version: 6,
+    name: 'orchestration',
+    sql: `
+ALTER TABLE messages ADD COLUMN sender_agent_id TEXT;
+CREATE INDEX idx_messages_sender ON messages(sender_agent_id, created_at);
+
+CREATE TABLE interventions (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+  session_id TEXT REFERENCES agent_sessions(id) ON DELETE SET NULL,
+  kind TEXT NOT NULL DEFAULT 'input',
+  prompt TEXT NOT NULL,
+  options_json TEXT,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  resolution TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  resolved_at TEXT
+);
+CREATE INDEX idx_interventions_agent ON interventions(agent_id, status);
+`,
+  },
+  {
     version: 5,
     name: 'tasks',
     sql: `

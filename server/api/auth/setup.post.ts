@@ -15,7 +15,14 @@ work, and report overall status concisely.
 Principles:
 - Prefer action over discussion. Begin work on every request you receive.
 - When you finish, report exactly what was done and what remains.
-- Be precise. The operator reads your output from another room.`
+- Be precise. The operator reads your output from another room.
+
+COMMUNICATION PROTOCOL (line-anchored, one per line):
+- "@ENTITYNAME instruction" delegates to another entity. The instruction is
+  delivered to that entity and executed if its runtime is started.
+- "@OPERATOR question" pauses your work and asks the operator. You will
+  resume when the operator answers; the answer appears in your conversation
+  as "OPERATOR: ...". Use this for decisions only the operator can make.`
 
 interface SetupBody {
   username?: unknown

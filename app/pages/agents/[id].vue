@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Agent, Message, Project, Provider, Task } from '~~/shared/types'
+import type { Agent, Intervention, Message, Project, Provider, Task } from '~~/shared/types'
 
 const route = useRoute()
 const agentId = computed(() => String(route.params.id))
@@ -17,6 +17,39 @@ const { data: sessions, refresh: refreshSessions } = await useFetch<SessionInfo[
 const { data: agentTasks, refresh: refreshTasks } = await useFetch<Task[]>(
   `/api/agents/${agentId.value}/tasks?limit=50`,
 )
+const { data: interventions, refresh: refreshInterventions } = await useFetch<Intervention[]>(
+  `/api/interventions?agentId=${agentId.value}&status=PENDING`,
+)
+
+const pendingIntervention = computed(() => (interventions.value ?? [])[0] ?? null)
+
+const interventionResponse = ref('')
+const interventionBusy = ref(false)
+const interventionError = ref('')
+
+async function respondToIntervention(value?: string) {
+  const intervention = pendingIntervention.value
+  if (!intervention) return
+  const resolution = (value ?? interventionResponse.value).trim()
+  if (!resolution) return
+  interventionBusy.value = true
+  interventionError.value = ''
+  try {
+    const { request } = useApi()
+    await request(`/interventions/${intervention.id}`, {
+      method: 'PATCH',
+      body: { resolution },
+    })
+    interventionResponse.value = ''
+    await refreshInterventions()
+    await refreshMessages()
+    await refreshAgent()
+  } catch (err) {
+    interventionError.value = (err as { message: string }).message
+  } finally {
+    interventionBusy.value = false
+  }
+}
 
 const currentTask = computed(() => {
   const list = agentTasks.value ?? []
@@ -63,6 +96,10 @@ watch(lastPayload, (payload) => {
   }
   if (payload.kind === 'event' && payload.event?.type.startsWith('task.')) {
     void refreshTasks()
+  }
+  if (payload.kind === 'event' && payload.event?.type.startsWith('intervention')) {
+    void refreshInterventions()
+    void refreshAgent()
   }
 })
 
@@ -173,6 +210,41 @@ async function removeAgent() {
           <button class="btn" @click="showEdit = true">CONFIGURE</button>
           <button class="btn btn-danger" :disabled="busyDelete" @click="removeAgent">DELETE</button>
         </div>
+      </div>
+
+      <!-- HUMAN INTERVENTION — the entity is waiting on the operator -->
+      <div v-if="pendingIntervention" class="shrink-0 border-t-2 border-arcane bg-abyss px-5 py-3">
+        <div class="mb-1 flex items-baseline gap-2">
+          <span class="font-mono text-[10px] tracking-[0.2em] text-arcane">ACTION REQUIRED</span>
+          <span class="font-mono text-[9px] tracking-[0.15em] text-faint">
+            {{ agent.name }} IS WAITING FOR YOUR ANSWER
+          </span>
+        </div>
+        <div class="mb-2.5 text-[13px] text-ink">{{ pendingIntervention.prompt }}</div>
+        <div v-if="pendingIntervention.options?.length" class="flex flex-wrap gap-2">
+          <button
+            v-for="option in pendingIntervention.options"
+            :key="option"
+            class="btn btn-primary"
+            :disabled="interventionBusy"
+            @click="respondToIntervention(option)"
+          >
+            {{ option }}
+          </button>
+        </div>
+        <div v-else class="flex items-stretch gap-2">
+          <input
+            v-model="interventionResponse"
+            class="field min-w-0 flex-1 font-mono text-[12px]"
+            placeholder="YOUR ANSWER…"
+            :disabled="interventionBusy"
+            @keydown.enter.prevent="respondToIntervention()"
+          />
+          <button class="btn btn-primary" :disabled="interventionBusy || !interventionResponse.trim()" @click="respondToIntervention()">
+            RESPOND
+          </button>
+        </div>
+        <div v-if="interventionError" class="mt-1.5 font-mono text-[10px] text-blood">{{ interventionError }}</div>
       </div>
 
       <ConversationView :agent="agent" :messages="messages ?? []" />

@@ -151,6 +151,8 @@ export function getAgentById(id: string): Agent | null {
 export interface MessageRow {
   id: string
   agent_id: string
+  sender_agent_id?: string | null
+  sender_name?: string | null
   role: string
   kind: string
   content: string
@@ -158,10 +160,18 @@ export interface MessageRow {
   created_at: string
 }
 
+export const MESSAGE_SELECT = `
+  SELECT m.*, sa.name AS sender_name
+  FROM messages m
+  LEFT JOIN agents sa ON sa.id = m.sender_agent_id
+`
+
 export function serializeMessage(row: MessageRow): Message {
   return {
     id: row.id,
     agentId: row.agent_id,
+    senderAgentId: row.sender_agent_id ?? null,
+    senderAgentName: row.sender_name ?? null,
     role: row.role as MessageRole,
     kind: row.kind as MessageKind,
     content: row.content,
