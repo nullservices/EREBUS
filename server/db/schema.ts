@@ -111,6 +111,24 @@ CREATE INDEX idx_events_type ON events(type);
 `,
   },
   {
+    version: 4,
+    name: 'notification-channels',
+    sql: `
+CREATE TABLE channels (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  config_enc TEXT NOT NULL,
+  config_hint TEXT,
+  events_json TEXT NOT NULL DEFAULT '["error","completion","lifecycle"]',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_channels_enabled ON channels(enabled);
+`,
+  },
+  {
     version: 3,
     name: 'runtime-tables',
     sql: `

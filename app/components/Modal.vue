@@ -16,7 +16,7 @@ function onKeydown(e: KeyboardEvent) {
     >
       <div class="absolute inset-0 bg-black/70" @click="emit('close')" />
       <div
-        class="relative max-h-[85vh] w-full max-w-xl overflow-y-auto border border-line bg-surface shadow-[0_0_80px_rgba(0,0,0,0.7)]"
+        class="relative max-h-[85vh] w-full max-w-xl overflow-y-auto border border-line-strong bg-surface shadow-[8px_8px_0_rgba(0,0,0,0.65)]"
       >
         <div class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-5 py-3">
           <h2 class="label">{{ title }}</h2>

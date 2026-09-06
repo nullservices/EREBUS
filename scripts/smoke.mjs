@@ -9,11 +9,35 @@
  * messages → events → dashboard → logout → login.
  * Exits non-zero on the first failure.
  */
+import { createServer } from 'node:http'
+
 const BASE = process.env.EREBUS_URL || 'http://127.0.0.1:4521'
 
 let cookie = ''
 let failures = 0
 let checks = 0
+
+async function waitFor(fn, timeoutMs, stepMs = 500) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const value = await fn()
+    if (value) return value
+    if (Date.now() > deadline) return null
+    await new Promise((r) => setTimeout(r, stepMs))
+  }
+}
+
+// Local HTTP receiver standing in for a real webhook endpoint.
+const received = []
+const receiver = createServer((req, res) => {
+  let body = ''
+  req.on('data', (c) => (body += c))
+  req.on('end', () => {
+    received.push({ url: req.url, headers: req.headers, body })
+    res.end('ok')
+  })
+})
+await new Promise((resolve) => receiver.listen(4523, '127.0.0.1', resolve))
 
 function check(name, cond, extra = '') {
   checks++
@@ -156,17 +180,42 @@ const badLogin = await fetch(`${BASE}/api/auth/login`, {
 })
 check('wrong password → 401', badLogin.status === 401)
 
-// ── Phase II · agent runtime ─────────────────────────────────────────
+// ── Notifications · real delivery to a local receiver ────────────────
 
-async function waitFor(fn, timeoutMs, stepMs = 500) {
-  const deadline = Date.now() + timeoutMs
-  for (;;) {
-    const value = await fn()
-    if (value) return value
-    if (Date.now() > deadline) return null
-    await new Promise((r) => setTimeout(r, stepMs))
-  }
-}
+const chan = await req('POST', '/api/channels', {
+  kind: 'generic',
+  label: 'Smoke Receiver',
+  events: ['error', 'completion', 'lifecycle'],
+  config: { url: 'http://127.0.0.1:4523/hook' },
+})
+check('create notification channel', chan.status === 200 && chan.json?.kind === 'generic', JSON.stringify(chan.json))
+check('channel exposes host hint only', chan.json?.configHint === '127.0.0.1:4523')
+
+const chanList = await req('GET', '/api/channels')
+check('channels list works', chanList.status === 200 && chanList.json?.length === 1)
+
+const chanTest = await req('POST', `/api/channels/${chan.json.id}/test`)
+check('channel test delivers', chanTest.status === 200 && chanTest.json?.ok === true, JSON.stringify(chanTest.json))
+const testDelivery = await waitFor(() => (received.length >= 1 ? received[0] : null), 10000)
+check('receiver got the test delivery', Boolean(testDelivery?.body?.includes('CHANNEL TEST')), JSON.stringify(received))
+
+const badChan = await req('POST', '/api/channels', {
+  kind: 'generic',
+  label: 'Broken',
+  events: ['error'],
+  config: { url: 'not-a-url' },
+})
+check('malformed channel URL rejected', badChan.status === 400)
+
+const emptyChan = await req('POST', '/api/channels', {
+  kind: 'generic',
+  label: 'No Events',
+  events: [],
+  config: { url: 'http://127.0.0.1:4523/hook' },
+})
+check('channel without event categories rejected', emptyChan.status === 400)
+
+// ── Phase II · agent runtime ─────────────────────────────────────────
 
 const archonId = agents.json?.find((a) => a.name === 'ARCHON')?.id
 
@@ -198,6 +247,18 @@ const threadAfter = await req('GET', `/api/agents/${archonId}/messages`)
 const errorRow = threadAfter.json?.find((m) => m.role === 'error')
 check('error recorded in conversation', Boolean(errorRow), JSON.stringify(threadAfter.json))
 check('error names the missing key', /key/i.test(errorRow?.content ?? ''), errorRow?.content)
+
+const errorNotif = await waitFor(() => {
+  const found = received.find((r) => {
+    try {
+      return JSON.parse(r.body).severity === 'error'
+    } catch {
+      return false
+    }
+  })
+  return found ?? null
+}, 10000)
+check('error event fanned out to channel', Boolean(errorNotif?.body?.includes('ARCHON')), JSON.stringify(received))
 
 // Recovery: an ERROR entity can still be stopped.
 const archonStop = await req('POST', `/api/agents/${archonId}/stop`)
@@ -238,6 +299,12 @@ const openaiModels = await req('GET', '/api/providers/models?kind=openai')
 check('kind-based catalog works', openaiModels.status === 200 && openaiModels.json?.models?.some((m) => m.id === 'gpt-4o'))
 const badKind = await req('GET', '/api/providers/models?kind=bogus')
 check('unknown kind → 400', badKind.status === 400)
+
+// ── Cleanup ───────────────────────────────────────────────────────────
+
+const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)
+check('channel deletion works', chanDelete.status === 200 && chanDelete.json?.ok === true)
+await new Promise((resolve) => receiver.close(resolve))
 
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures ? 1 : 0)

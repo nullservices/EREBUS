@@ -43,7 +43,7 @@ function isMetaRow(message: Message): boolean {
         <!-- tool rows: framed mono block -->
         <div v-else-if="message.role === 'tool'" class="border border-line bg-abyss">
           <div class="flex items-center justify-between border-b border-line px-3 py-1.5">
-            <span class="font-mono text-[10px] tracking-[0.2em] text-ember-dim">
+            <span class="font-mono text-[10px] tracking-[0.2em] text-arcane-dim">
               TOOL · {{ message.content }}
             </span>
             <span class="font-mono text-[10px] tabular-nums text-faint">{{ timeOf(message.createdAt) }}</span>
@@ -74,7 +74,7 @@ function isMetaRow(message: Message): boolean {
           <div class="mb-1 flex items-baseline justify-between">
             <span
               class="font-mono text-[10px] tracking-[0.22em]"
-              :class="message.role === 'user' ? 'text-ember-dim' : 'text-dim'"
+              :class="message.role === 'user' ? 'text-arcane-dim' : 'text-dim'"
             >
               {{ META_LABELS[message.role] ?? message.role.toUpperCase() }}
             </span>

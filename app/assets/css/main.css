@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 /* ── EREBUS design tokens ─────────────────────────────────────────────
-   "An ancient intelligence buried inside a futuristic machine."
-   Near-black ground, hairline borders, muted ink, a single ember accent.
+   Developer dark mode · minimal · Linear-style neo-brutalism.
+   Near-black ground, crisp structural borders, hard offset shadows,
+   flat surfaces, one restrained violet accent. No gradients, no glows.
    System fonts only — EREBUS works fully offline. */
 
 @theme {
@@ -11,22 +12,30 @@
   --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "Roboto Mono",
     "Courier New", monospace;
 
-  --color-void: #070709;
-  --color-abyss: #0b0b0e;
-  --color-surface: #0f0f13;
-  --color-raised: #15151a;
-  --color-overlay: #1b1b21;
-  --color-line: #1d1d24;
-  --color-line-soft: #141419;
+  /* grounds */
+  --color-void: #0a0a0c;
+  --color-abyss: #0d0d10;
+  --color-surface: #131317;
+  --color-raised: #1a1a1f;
+  --color-overlay: #212127;
 
-  --color-ink: #e8e6e2;
-  --color-dim: #9d9aa4;
-  --color-faint: #62606b;
+  /* structure — visible, engineered edges */
+  --color-line: #26262e;
+  --color-line-strong: #36363f;
+  --color-line-soft: #1a1a1f;
 
-  --color-ember: #d6a548;
-  --color-ember-dim: #847031;
-  --color-blood: #b3554e;
-  --color-moss: #779d6d;
+  /* ink */
+  --color-ink: #f2f1ee;
+  --color-dim: #a4a2ad;
+  --color-faint: #64626e;
+
+  /* accent — restrained violet: the arcane signal in a dark machine */
+  --color-arcane: #7d73c7;
+  --color-arcane-dim: #575090;
+
+  /* semantic */
+  --color-blood: #c25b52;
+  --color-moss: #77a36e;
 }
 
 @layer base {
@@ -38,22 +47,22 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 13.5px;
-    line-height: 1.6;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: color-mix(in srgb, var(--color-ember) 26%, transparent);
+    background: color-mix(in srgb, var(--color-arcane) 30%, transparent);
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #23232b transparent;
+    scrollbar-color: #2a2a32 transparent;
   }
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #23232b;
+    background: #2a2a32;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -72,37 +81,43 @@
     background: var(--color-surface);
     color: var(--color-ink);
   }
+  :focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--color-arcane) 70%, transparent);
+    outline-offset: 1px;
+  }
 }
 
 @layer components {
-  /* Section/caption label: 10px mono, wide tracking, uppercase. */
+  /* Section/caption label: 10px mono, tight tracking, uppercase. */
   .label {
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-faint);
   }
 
+  /* Panels carry the neo-brutalist signature: hard offset shadow, no blur. */
   .panel {
     background: var(--color-surface);
     border: 1px solid var(--color-line);
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
   }
 
   .field {
     width: 100%;
     background: var(--color-abyss);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-strong);
     padding: 0.5rem 0.75rem;
     color: var(--color-ink);
     outline: none;
-    transition: border-color 150ms ease;
+    transition: border-color 120ms ease;
   }
   .field:focus {
-    border-color: color-mix(in srgb, var(--color-ember) 45%, transparent);
+    border-color: var(--color-arcane);
   }
   .field::placeholder {
-    color: color-mix(in srgb, var(--color-faint) 75%, transparent);
+    color: color-mix(in srgb, var(--color-faint) 80%, transparent);
   }
 
   .btn {
@@ -113,36 +128,47 @@
     padding: 0.5rem 1rem;
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--color-dim);
-    background: transparent;
-    border: 1px solid var(--color-line);
-    transition: all 150ms ease;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    transition: all 100ms ease;
     cursor: pointer;
     user-select: none;
   }
-  .btn:hover {
-    border-color: color-mix(in srgb, var(--color-dim) 55%, transparent);
+  .btn:hover:not(:disabled) {
     color: var(--color-ink);
+    border-color: var(--color-dim);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.65);
+    transform: translate(-1px, -1px);
+  }
+  .btn:active:not(:disabled) {
+    box-shadow: none;
+    transform: translate(1px, 1px);
   }
   .btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
   .btn-primary {
-    color: var(--color-ember);
-    border-color: color-mix(in srgb, var(--color-ember) 55%, transparent);
+    color: var(--color-arcane);
+    border-color: color-mix(in srgb, var(--color-arcane) 60%, transparent);
   }
   .btn-primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-ember) 10%, transparent);
-    border-color: color-mix(in srgb, var(--color-ember) 75%, transparent);
+    color: var(--color-arcane);
+    background: color-mix(in srgb, var(--color-arcane) 12%, transparent);
+    border-color: var(--color-arcane);
+    box-shadow: 2px 2px 0 color-mix(in srgb, var(--color-arcane) 35%, transparent);
   }
   .btn-danger {
     color: var(--color-blood);
-    border-color: color-mix(in srgb, var(--color-blood) 45%, transparent);
+    border-color: color-mix(in srgb, var(--color-blood) 50%, transparent);
   }
   .btn-danger:hover:not(:disabled) {
+    color: var(--color-blood);
     background: color-mix(in srgb, var(--color-blood) 10%, transparent);
+    border-color: var(--color-blood);
+    box-shadow: 2px 2px 0 color-mix(in srgb, var(--color-blood) 30%, transparent);
   }
 }

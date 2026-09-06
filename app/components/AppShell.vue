@@ -90,7 +90,7 @@ async function signOut() {
           </button>
           <NuxtLink
             to="/projects"
-            class="block px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-faint transition-colors hover:text-ember"
+            class="block px-2 py-1 font-mono text-[10px] tracking-[0.2em] text-faint transition-colors hover:text-arcane"
           >
             + NEW PROJECT
           </NuxtLink>
@@ -109,7 +109,7 @@ async function signOut() {
               class="group flex items-center gap-3 border-l-2 px-2.5 py-2 transition-colors duration-150"
               :class="
                 route.params.id === agent.id
-                  ? 'border-ember bg-raised'
+                  ? 'border-arcane bg-raised'
                   : 'border-transparent hover:bg-raised/60'
               "
             >
@@ -132,7 +132,7 @@ async function signOut() {
           </nav>
           <NuxtLink
             to="/agents"
-            class="mt-1 block px-2.5 py-1 font-mono text-[10px] tracking-[0.2em] text-faint transition-colors hover:text-ember"
+            class="mt-1 block px-2.5 py-1 font-mono text-[10px] tracking-[0.2em] text-faint transition-colors hover:text-arcane"
           >
             + NEW ENTITY
           </NuxtLink>
@@ -146,10 +146,10 @@ async function signOut() {
           :key="item.to"
           :to="item.to"
           class="flex items-center justify-between px-2 py-1.5 transition-colors"
-          :class="route.path === item.to ? 'text-ember' : 'text-dim hover:text-ink'"
+          :class="route.path === item.to ? 'text-arcane' : 'text-dim hover:text-ink'"
         >
           <span class="font-mono text-[11px] tracking-[0.22em]">{{ item.label }}</span>
-          <span v-if="route.path === item.to" class="text-ember">▸</span>
+          <span v-if="route.path === item.to" class="text-arcane">▸</span>
         </NuxtLink>
       </nav>
 
@@ -168,7 +168,7 @@ async function signOut() {
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex h-12 shrink-0 items-center justify-between border-b border-line px-5">
         <div class="flex items-baseline gap-4">
-          <span class="text-[13px] font-medium tracking-[0.45em] text-ink">E R E B U S</span>
+          <span class="text-[13px] font-medium tracking-[0.28em] text-ink">E R E B U S</span>
           <span v-if="viewTitle" class="font-mono text-[10px] tracking-[0.25em] text-faint">
             / {{ viewTitle }}
           </span>

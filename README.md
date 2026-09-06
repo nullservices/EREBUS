@@ -1,60 +1,74 @@
-# E R E B U S
+<div align="center">
 
-**Local autonomous AI agent command platform.**
+```
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║                        E  R  E  B  U  S                                  ║
+║                                                                          ║
+║        LOCAL AUTONOMOUS AI AGENT COMMAND PLATFORM                        ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+```
 
-EREBUS is a self-hosted, LAN-accessible orchestration environment for AI
-agents. It runs on your Windows desktop, gives entities (agents) access to
-local projects and tools, and presents the whole operation as a dark,
-restrained command console — observable from any device on your network.
+*An ancient intelligence buried inside a futuristic machine.*
 
-The browser is a control surface. The agents run on the host machine and
-keep working after the browser closes.
+`Windows` · `Node 22` · `Nuxt 4` · `SQLite` · `Phase II`
+
+</div>
 
 ---
 
-## Status — Phase II (Agent runtime)
+EREBUS is a **self-hosted, LAN-accessible orchestration environment for AI
+agents**. It runs on your Windows desktop, gives entities (agents) access to
+local projects and tools, and presents the whole operation as a dark,
+restrained command console — observable from any device on your network.
 
-Working today:
+The browser is a control surface. **The agents run on the host machine** and
+keep working after the browser closes.
 
-- Operator account with first-run initialization, login, sessions
-- Projects CRUD
-- Entities (agents) CRUD with hierarchy (`parent_id`), tools and permissions
-- Provider configuration with API keys encrypted at rest (never sent to the browser)
-- **Agent runtime**: START / STOP / RESTART per entity, real status lifecycle
-  (IDLE → THINKING → WORKING → ERROR), per-entity instruction queue
-- **DeepSeek adapter** — streaming chat over the OpenAI-compatible API
-- **Claude Code adapter** — launches the host `claude` CLI headlessly in the
-  entity's working directory; stream-json output becomes real activity
-  (assistant text, tool calls, raw output); sessions resume via `--resume`;
-  entity permissions map to `--allowedTools` / `--disallowedTools`
-  (`ask` resolves to auto-deny headlessly until the Phase VII approval system)
-- Persistent conversations with streamed replies, tool rows and errors
-- Runtime session history with token usage
-- Real provider connection tests (DeepSeek HTTP check, Claude CLI check)
-- **Model dropdowns** — provider and entity forms pick models from a list:
-  fetched live from the provider where supported (DeepSeek `GET /models`,
-  with a ⟳ refresh) or from a curated catalog (Claude family: Opus 5 /
-  Sonnet 5 / Haiku 4.5 / Fable 5.1); the currently configured model is
-  always kept, and CUSTOM… accepts ids outside the list
-- Global activity log (events) + command dashboard + EREBUS dark visual system
+```
+┌─────────────────────────┐          ┌──────────────────────────────┐
+│  DESKTOP (host)         │          │  LAPTOP / PHONE (observe)   │
+│                         │   LAN    │                              │
+│  ┌───────────────────┐  │ ───────▶ │  http://DESKTOP-IP:4521     │
+│  │ EREBUS server     │  │          │                              │
+│  │ ┌─────┐ ┌─────┐   │  │          │  entities · tasks · activity │
+│  │ │ARCHON│ │VESPER│  │  │          └──────────────────────────────┘
+│  │ └─────┘ └─────┘   │  │
+│  │ agent runtimes    │  │
+│  │ SQLite · processes│  │
+│  └───────────────────┘  │
+└─────────────────────────┘
+```
 
-Planned next: **Phase III — realtime** (WebSockets, live activity streams —
-the UI currently polls while an entity is active), then **Phase IV — tasks**.
+---
 
-### Permissions note (Claude Code)
+## Status — Phase II · Agent runtime
 
-Filesystem/git/terminal `allow` → explicit CLI tool grants; `readonly` →
-read-shaped grants; `deny` → explicit CLI deny rules; `ask` → auto-denied
-in headless runs (there is no one to ask yet — the approval system is
-Phase VII). Writes outside the entity's working directory require approval
-and are therefore denied headlessly.
+| | |
+|---|---|
+| ✅ Operator account, sessions, first-run initialization | ✅ Entity runtime: START / STOP / RESTART |
+| ✅ Projects · entities · hierarchy · tools · permissions | ✅ DeepSeek adapter — streaming API runs |
+| ✅ Providers with **encrypted** API keys | ✅ Claude Code adapter — headless CLI runs |
+| ✅ Persistent conversations with streamed replies | ✅ Runtime sessions + token usage |
+| ✅ Global activity log · command dashboard | ✅ Real provider connection tests |
+| ✅ **Model dropdowns** — live from provider or curated | ✅ **Notification channels** — Discord · ntfy · webhooks |
+| ⬜ Realtime WebSockets (Phase III) | ⬜ Task system + board (Phase IV) |
+| ⬜ Orchestration & agent-to-agent (Phase V) | ⬜ Approval system (Phase VII) |
+
+Entities show `OFFLINE` until their runtime is started — every status,
+streamed word, tool row and error comes from the actual runtime. Nothing is
+fabricated.
 
 ---
 
 ## Requirements
 
-- Windows 10/11 (macOS/Linux should work; Windows is the primary target)
-- Node.js 20+ (tested on 22)
+| Requirement | Note |
+|---|---|
+| Windows 10 / 11 | primary target (macOS/Linux should work) |
+| Node.js 20+ | tested on 22 |
+| Claude Code CLI | only for Claude-provider entities — and it's already on this machine |
 
 ## Installation
 
@@ -62,12 +76,12 @@ and are therefore denied headlessly.
 git clone <this repo>
 cd EREBUS
 npm install
-npm run setup     # prepares the data directory and encryption keys
+npm run setup     # prepares data directory + encryption keys
 npm run dev
 ```
 
-Open `http://127.0.0.1:4521` and follow the initialization screen:
-operator account → first project → optional provider key → ARCHON is created.
+Open `http://127.0.0.1:4521` → initialization screen → operator account →
+first project → optional provider key → **ARCHON is created**.
 
 ## LAN access
 
@@ -75,16 +89,13 @@ operator account → first project → optional provider key → ARCHON is creat
 npm run dev -- --host 0.0.0.0
 ```
 
-Then from another device on your network:
-`http://<DESKTOP-IP>:4521`
+Then from any device on your network: `http://<DESKTOP-IP>:4521`
 
-Keep the server bound to `127.0.0.1` on untrusted networks. LAN access is
-unencrypted HTTP by design; the operator password and session cookie are the
-access gate. Phase VII hardens this further.
+> Keep the server bound to `127.0.0.1` on untrusted networks. LAN access is
+> plain HTTP by design — the operator password and session cookie are the
+> gate. Phase VII hardens this further.
 
 ## Configuration
-
-Copy `.env.example` to `.env` or set variables in your shell:
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -92,56 +103,94 @@ Copy `.env.example` to `.env` or set variables in your shell:
 | `NITRO_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` for LAN) |
 | `NITRO_PORT` | `4521` | Server port |
 
-## Providers
+See `.env.example`.
 
-Settings → Providers. Keys are AES-256-GCM encrypted with a master key
-generated into the data directory on first run. The UI only ever sees a
-masked hint (`••••1234`). TEST performs a real connectivity check:
-a live DeepSeek request, or a Claude CLI version check.
+## Providers & models
+
+Settings → Providers. Keys are **AES-256-GCM encrypted** with a master key
+generated into the data directory on first run — the UI only ever sees a
+masked hint (`••••1234`). The model field is a dropdown:
+
+- **LIVE FROM PROVIDER** — fetched from the provider's API (DeepSeek
+  `GET /models`), refreshable with `⟳`
+- **CURATED CATALOG** — for providers without a models endpoint (Claude:
+  Opus 5 · Sonnet 5 · Haiku 4.5 · Fable 5.1)
+- `CUSTOM…` — any model id outside the list
+
+`TEST` performs a real connectivity check (live API request, or Claude CLI
+version check).
 
 ## Running entities
 
-Open an entity → START → send an instruction. With a Claude provider the
-entity launches `claude -p` in its working directory (requires the Claude
-Code CLI installed and authenticated on the host). With DeepSeek the
-entity runs a streaming chat loop in-process. All output is real: tool
-rows, command output, errors and streamed replies land in the conversation
-as they happen.
+Open an entity → **START** → send an instruction.
 
-## Projects
+- **Claude provider** — launches `claude -p` headlessly in the entity's
+  working directory; stream-json output becomes real activity (assistant
+  text, tool calls, raw output); sessions resume with `--resume`.
+- **DeepSeek provider** — streaming chat loop in-process.
 
-A project binds entities to a root directory. Create one per codebase.
-Entities can be assigned to a project and parented under another entity
-(ARCHON → VESPER, …). Parent cycles are rejected.
+### Permissions (Claude Code)
+
+| Entity setting | Runtime behavior |
+|---|---|
+| `allow` | explicit CLI grant (`--allowedTools`) |
+| `readonly` | read-shaped grants (`Read`, `git status/diff/log/…`) |
+| `deny` | explicit CLI deny rule (`--disallowedTools`) |
+| `ask` | auto-denied headlessly — the Phase VII approval system makes `ask` real |
+
+Writes outside the entity's working directory always require approval →
+denied headlessly.
+
+## Notification channels
+
+Settings → Notification Channels. EREBUS fans real events out of the global
+activity log to every enabled channel that subscribed to the category.
+
+| Kind | What it is | Setup |
+|---|---|---|
+| **Discord** | server webhook — no bot required | Channel settings → Integrations → Webhook |
+| **ntfy** | push to your phone (self-hostable) | Install the ntfy app, subscribe to a topic |
+| **Generic** | any HTTP endpoint (Slack, Telegram bridges…) | URL that accepts JSON |
+
+Categories: `ERRORS` · `COMPLETIONS` · `LIFECYCLE` · `MESSAGES`. Channel
+configs are encrypted like API keys; `TEST` sends a real delivery.
 
 ## OneDrive warning
 
 This default location sits inside OneDrive. The SQLite database is a
-live-changing file — exclude `data/` from OneDrive sync (right-click → “Free
-up space”/always-keep setting, or move `EREBUS_DATA_DIR` to a non-synced
-location such as `C:\erebus-data`). Agent runtimes writing into synced
-project directories in Phase II will also benefit from excluded folders.
+live-changing file — **exclude `data/` from OneDrive sync** (or point
+`EREBUS_DATA_DIR` at a non-synced location such as `C:\erebus-data`).
+Agent working directories will benefit from the same treatment.
 
 ## Scripts
 
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Development server |
-| `npm run build` + `npm run preview` | Production build (one process) |
+| `npm run build` + `npm run preview` | Production build (single process) |
 | `npm run typecheck` | vue-tsc full-project type check |
-| `npm run smoke` | End-to-end API test (requires running server + fresh data) |
+| `npm run smoke` | End-to-end API suite (running server + fresh data) |
 
 ## Troubleshooting
 
-- **`better-sqlite3` fails to load** — its native binding was not built:
-  `npm install-scripts approve better-sqlite3 && npm rebuild better-sqlite3`.
-  The approval is recorded in `package.json` for future installs.
-- **Port in use** — `NITRO_PORT=4522 npm run dev`.
-- **Reset everything** — stop the server, delete `data/`, run `npm run dev`
-  again for a fresh initialization screen.
-- **npm crashes with `edgesOut`** — upgrade npm (`npm install -g npm@latest`);
-  npm 10.8.x had an arborist bug.
+| Symptom | Fix |
+|---|---|
+| `better-sqlite3` fails to load | `npm install-scripts approve better-sqlite3 && npm rebuild better-sqlite3` |
+| Port in use | `NITRO_PORT=4522 npm run dev` |
+| Reset everything | stop server, delete `data/`, run again → fresh initialization |
+| npm crashes with `edgesOut` | `npm install -g npm@latest` (npm 10.8.x arborist bug) |
+| `claude CLI not found on PATH` | it's found automatically — native installs at `%USERPROFILE%\.local\bin\claude.exe`, npm shims via cmd.exe |
 
 ---
 
-*An ancient intelligence buried inside a futuristic machine.*
+<div align="center">
+
+```
+PHASE I ▸ FOUNDATION       COMPLETE
+PHASE II ▸ AGENT RUNTIME   COMPLETE
+PHASE III ▸ REALTIME       NEXT
+```
+
+*Built for one machine. Commanded from anywhere in the house.*
+
+</div>

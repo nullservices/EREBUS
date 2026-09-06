@@ -27,7 +27,7 @@ function timeOf(iso: string): string {
         </span>
         <span
           class="w-24 shrink-0 truncate font-mono text-[10px] tracking-[0.18em]"
-          :class="ev.agentName ? 'text-ember-dim' : 'text-faint'"
+          :class="ev.agentName ? 'text-arcane-dim' : 'text-faint'"
         >
           {{ ev.agentName ?? 'SYSTEM' }}
         </span>

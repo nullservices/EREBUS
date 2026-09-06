@@ -31,7 +31,7 @@ async function send() {
   <div class="shrink-0 border-t border-line bg-surface px-4 py-3">
     <div v-if="error" class="mb-2 font-mono text-[11px] text-blood">{{ error }}</div>
     <div class="flex items-center gap-3">
-      <span class="select-none font-mono text-ember">❯</span>
+      <span class="select-none font-mono text-arcane">❯</span>
       <textarea
         v-model="text"
         rows="1"

@@ -25,7 +25,7 @@ const today = new Date().toLocaleDateString('en-GB', {
     <div class="mx-auto max-w-5xl px-8 py-10">
       <header class="mb-10">
         <div class="label mb-2">SYSTEM</div>
-        <h1 class="text-3xl font-light tracking-[0.35em] text-ink">E R E B U S</h1>
+        <h1 class="text-3xl font-light tracking-[0.25em] text-ink">E R E B U S</h1>
         <div class="mt-2 font-mono text-[10.5px] tracking-[0.2em] text-faint">
           {{ today.toUpperCase() }} · LOCAL AUTONOMOUS OPERATIONS
         </div>
@@ -56,7 +56,7 @@ const today = new Date().toLocaleDateString('en-GB', {
                 v-for="p in projects"
                 :key="p.id"
                 to="/projects"
-                class="panel block px-4 py-3 transition-colors hover:border-ember/40"
+                class="panel block px-4 py-3 transition-colors hover:border-arcane/40"
               >
                 <div class="flex items-baseline justify-between">
                   <span class="text-[13.5px] text-ink">{{ p.name }}</span>

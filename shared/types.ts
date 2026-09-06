@@ -79,6 +79,19 @@ export interface ModelCatalog {
   models: ModelOption[]
 }
 
+export type ChannelKind = 'discord' | 'ntfy' | 'generic'
+
+export interface Channel {
+  id: string
+  kind: ChannelKind
+  label: string
+  enabled: boolean
+  events: string[]
+  configHint: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Agent {
   id: string
   name: string

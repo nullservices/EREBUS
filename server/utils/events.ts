@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getDb } from '../db'
+import { notifyEvent } from '../runtime/notifications'
 import type { EventRecord } from '../../shared/types'
 
 /**
@@ -62,7 +63,12 @@ export function logEvent(event: NewEvent): EventRecord {
        WHERE e.id = ?`,
     )
     .get(id) as EventRow
-  return serializeEvent(row)
+  const serialized = serializeEvent(row)
+
+  // Fan out to configured notification channels (fire-and-forget).
+  notifyEvent(serialized)
+
+  return serialized
 }
 
 export function listEvents(opts: {

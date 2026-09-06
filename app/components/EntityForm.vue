@@ -215,7 +215,7 @@ async function submit() {
           <label class="flex cursor-pointer items-center gap-2.5 font-mono text-[11px] tracking-[0.15em] text-dim">
             <input
               type="checkbox"
-              class="accent-[var(--color-ember)]"
+              class="accent-[var(--color-arcane)]"
               :checked="form.tools.includes(tool.id)"
               @change="toggleTool(tool.id)"
             />
