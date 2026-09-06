@@ -88,6 +88,28 @@
 }
 
 @layer components {
+  /* Page + toast transitions: quick, quiet, no theater. */
+  .page-enter-active,
+  .page-leave-active {
+    transition: opacity 120ms ease;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    opacity: 0;
+  }
+  .toast-enter-active,
+  .toast-leave-active {
+    transition: all 160ms ease;
+  }
+  .toast-enter-from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  .toast-leave-to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
   /* Section/caption label: 10px mono, tight tracking, uppercase. */
   .label {
     font-family: var(--font-mono);

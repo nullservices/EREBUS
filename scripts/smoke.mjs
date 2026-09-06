@@ -603,6 +603,18 @@ check(
     headerRes.headers.get('x-frame-options') === 'DENY',
 )
 
+// ── Phase VIII · search & logs ────────────────────────────────────────
+
+const searchRes = await req('GET', '/api/search?q=inventory')
+check('global search finds the task', searchRes.status === 200 && searchRes.json?.tasks?.some((t) => t.title.includes('inventory')))
+const entitySearch = await req('GET', '/api/search?q=vesper')
+check('global search finds entities', entitySearch.json?.agents?.some((a) => a.name === 'VESPER'))
+check('short queries return empty sets', (await req('GET', '/api/search?q=i')).json?.agents?.length === 0)
+
+const logRes = await req('GET', '/api/system/logs?lines=50')
+check('structured log tail readable', logRes.status === 200 && Array.isArray(logRes.json?.lines) && logRes.json?.lines?.length > 0)
+check('log lines are JSON', (() => { try { JSON.parse(logRes.json.lines[0]); return true } catch { return false } })())
+
 // ── Cleanup ───────────────────────────────────────────────────────────
 
 const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)

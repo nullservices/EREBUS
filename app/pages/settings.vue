@@ -17,6 +17,11 @@ const securityBusy = ref(false)
 const securityError = ref('')
 const securityDone = ref('')
 
+const { data: logData, refresh: refreshLogs } = await useFetch<{ lines: string[] }>(
+  '/api/system/logs?lines=100',
+)
+const logLines = computed(() => logData.value?.lines ?? [])
+
 async function saveDenyPatterns() {
   securityError.value = ''
   securityDone.value = ''
@@ -275,9 +280,25 @@ const EVENT_LABELS: Record<string, string> = {
         <section class="panel p-6">
           <h2 class="label mb-4">APPEARANCE</h2>
           <p class="font-mono text-[10.5px] leading-relaxed tracking-[0.1em] text-dim">
-            EREBUS RENDERS IN A SINGLE DARK SCHEME. THEME VARIANTS ARRIVE WITH
-            PHASE VIII.
+            EREBUS RENDERS IN A SINGLE DARK SCHEME — DEVELOPER DARK MINIMAL,
+            NEO-BRUTALIST STRUCTURE. THEME VARIANTS ARE NOT PLANNED.
           </p>
+        </section>
+
+        <section class="panel p-6">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="label">STRUCTURED LOG</h2>
+            <button class="btn" @click="() => refreshLogs()">REFRESH</button>
+          </div>
+          <p class="mb-3 font-mono text-[10px] leading-relaxed tracking-[0.08em] text-faint">
+            EVERY EVENT IS APPENDED AS JSONL TO EREBUS.LOG IN THE DATA
+            DIRECTORY (ROTATED AT 10 MB). SHOWING THE LAST 100 LINES.
+          </p>
+          <pre
+            v-if="(logLines?.length ?? 0) > 0"
+            class="max-h-72 overflow-y-auto border border-line bg-abyss p-3 font-mono text-[10px] leading-relaxed text-dim"
+          >{{ logLines.join('\n') }}</pre>
+          <p v-else class="font-mono text-[10px] tracking-[0.15em] text-faint">LOG EMPTY — ACTIVITY WILL APPEAR HERE</p>
         </section>
       </div>
     </div>

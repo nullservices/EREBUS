@@ -72,12 +72,55 @@ async function signOut() {
     await navigateTo('/login', { replace: true })
   }
 }
+
+// ── Command palette (Ctrl+K) ──────────────────────────────────────────
+
+const paletteOpen = ref(false)
+const router = useRouter()
+
+function onGlobalKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    paletteOpen.value = !paletteOpen.value
+  }
+}
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
+
+// ── Search ─────────────────────────────────────────────────────────────
+
+const searchQuery = ref('')
+function runSearch() {
+  const q = searchQuery.value.trim()
+  if (q.length >= 2) void router.push(`/search?q=${encodeURIComponent(q)}`)
+}
+
+// ── Mobile sidebar ─────────────────────────────────────────────────────
+
+const sidebarOpen = ref(false)
+function closeSidebar() {
+  sidebarOpen.value = false
+}
+watch(
+  () => route.path,
+  () => closeSidebar(),
+)
 </script>
 
 <template>
   <div class="flex h-screen w-full overflow-hidden bg-void text-ink">
+    <!-- mobile sidebar backdrop -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 z-40 bg-black/60 lg:hidden"
+      @click="closeSidebar"
+    />
+
     <!-- LEFT · entity navigation -->
-    <aside class="flex w-[264px] shrink-0 flex-col border-r border-line bg-abyss">
+    <aside
+      class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col border-r border-line bg-abyss transition-transform duration-200 lg:static lg:translate-x-0"
+      :class="sidebarOpen ? 'translate-x-0' : ''"
+    >
       <div class="shrink-0 space-y-4 border-b border-line px-4 py-4">
         <div class="label mb-1.5">PROJECTS</div>
         <div class="space-y-0.5">
@@ -178,23 +221,46 @@ async function signOut() {
     <!-- CENTER / RIGHT -->
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex h-12 shrink-0 items-center justify-between border-b border-line px-5">
-        <div class="flex items-baseline gap-4">
+        <div class="flex min-w-0 items-center gap-4">
+          <button
+            class="cursor-pointer font-mono text-sm text-faint transition-colors hover:text-ink lg:hidden"
+            @click="sidebarOpen = true"
+          >
+            ☰
+          </button>
           <span class="text-[13px] font-medium tracking-[0.28em] text-ink">E R E B U S</span>
-          <span v-if="viewTitle" class="font-mono text-[10px] tracking-[0.25em] text-faint">
+          <span v-if="viewTitle" class="hidden font-mono text-[10px] tracking-[0.25em] text-faint sm:inline">
             / {{ viewTitle }}
           </span>
         </div>
-        <div class="flex items-center gap-5">
+        <div class="flex min-w-0 items-center gap-4">
+          <div class="hidden items-center gap-2 md:flex">
+            <input
+              v-model="searchQuery"
+              class="w-44 bg-abyss px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-dim outline-none transition-colors placeholder:text-faint focus:text-ink"
+              placeholder="SEARCH…"
+              @keydown.enter.prevent="runSearch"
+            />
+          </div>
           <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-faint">
             <StatusDot status="COMPLETED" />
-            SYSTEM ONLINE
+            <span class="hidden sm:inline">SYSTEM ONLINE</span>
           </div>
-          <span class="font-mono text-[10px] tracking-[0.2em] text-faint">v0.1.0</span>
+          <button
+            class="hidden cursor-pointer border border-line px-2 py-0.5 font-mono text-[9px] tracking-[0.15em] text-faint transition-colors hover:text-ink sm:block"
+            @click="paletteOpen = true"
+          >
+            CTRL K
+          </button>
+          <span class="hidden font-mono text-[10px] tracking-[0.2em] text-faint md:inline">v0.1.0</span>
         </div>
       </header>
       <main class="min-h-0 flex-1 overflow-hidden">
         <slot />
       </main>
     </div>
+
+    <CommandPalette :open="paletteOpen" :agents="agents ?? []" @close="paletteOpen = false" />
+    <NotificationCenter />
   </div>
 </template>

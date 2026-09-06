@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { getDb } from '../db'
 import { notifyEvent } from '../runtime/notifications'
 import { broadcast } from '../runtime/realtime'
+import { appendLog } from '../runtime/logger'
 import type { EventRecord } from '../../shared/types'
 
 /**
@@ -66,9 +67,11 @@ export function logEvent(event: NewEvent): EventRecord {
     .get(id) as EventRow
   const serialized = serializeEvent(row)
 
-  // Fan out to notification channels and realtime peers (fire-and-forget).
+  // Fan out to notification channels, realtime peers and the structured
+  // log (all fire-and-forget).
   notifyEvent(serialized)
   broadcast({ kind: 'event', event: serialized })
+  appendLog({ kind: 'event', type: serialized.type, agentId: serialized.agentId, summary: serialized.summary })
 
   return serialized
 }
