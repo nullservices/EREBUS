@@ -8,24 +8,33 @@ const { selectedProjectId } = useErebusState()
 const { data: agents, refresh: refreshAgents } = await useFetch<Agent[]>('/api/agents')
 const { data: projects } = await useFetch<Project[]>('/api/projects')
 
-// While any entity is active, keep the sidebar statuses live.
-// Phase III replaces this polling with WebSocket push.
-const anyActive = computed(() =>
-  (agents.value ?? []).some((a) => a.status !== 'OFFLINE'),
-)
-let pollTimer: ReturnType<typeof setInterval> | null = null
-function syncPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
+// Realtime: refresh the sidebar whenever an entity-relevant payload arrives.
+const { connected, lastPayload } = useRealtime()
+watch(lastPayload, (payload) => {
+  if (!payload) return
+  if (payload.kind === 'agent.status') {
+    void refreshAgents()
+    return
   }
-  if (anyActive.value) {
-    pollTimer = setInterval(() => void refreshAgents(), 3000)
+  if (payload.kind === 'event' && payload.event?.agentId) {
+    void refreshAgents()
+  }
+})
+
+// Slow fallback polling while the socket is down — statuses stay honest.
+let fallbackTimer: ReturnType<typeof setInterval> | null = null
+function syncFallback() {
+  if (fallbackTimer) {
+    clearInterval(fallbackTimer)
+    fallbackTimer = null
+  }
+  if (!connected.value) {
+    fallbackTimer = setInterval(() => void refreshAgents(), 5000)
   }
 }
-watch(anyActive, syncPolling)
+watch(connected, syncFallback, { immediate: true })
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (fallbackTimer) clearInterval(fallbackTimer)
 })
 
 const filteredAgents = computed(() => {

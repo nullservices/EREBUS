@@ -19,6 +19,9 @@ export default defineNuxtConfig({
     externals: {
       external: ['better-sqlite3'],
     },
+    experimental: {
+      websocket: true,
+    },
   },
 
   app: {

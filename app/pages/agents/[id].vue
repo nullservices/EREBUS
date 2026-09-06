@@ -34,41 +34,44 @@ const lastSession = computed(() =>
   (sessions.value ?? []).find((s) => s.status === 'RUNNING') ?? (sessions.value ?? [])[0] ?? null,
 )
 
-const ACTIVE_STATUSES = ['STARTING', 'THINKING', 'WORKING', 'WAITING', 'STOPPING']
-
 const isStarted = computed(() => !!agent.value && agent.value.status !== 'OFFLINE')
-const isActive = computed(() => !!agent.value && ACTIVE_STATUSES.includes(agent.value.status))
 
-// Live refresh while the runtime is active — real data polled from the API.
-// Phase III replaces this with WebSocket push.
-let pollTimer: ReturnType<typeof setInterval> | null = null
-function syncPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
+// Realtime: every payload that touches this entity refreshes its queries —
+// streamed replies land in the conversation as they are written to the DB.
+const { connected, lastPayload } = useRealtime()
+watch(lastPayload, (payload) => {
+  if (!payload) return
+  const touches = (id: string | null | undefined) => !id || id === agentId.value
+  if (payload.kind === 'agent.status' && touches(payload.agentId)) {
+    void refreshAgent()
+    void refreshSessions()
+    return
   }
-  if (isActive.value) {
-    pollTimer = setInterval(() => {
+  if (payload.kind === 'event' && touches(payload.event?.agentId)) {
+    void refreshAgent()
+    void refreshMessages()
+    void refreshSessions()
+  }
+})
+
+// Slow fallback polling while the socket is down.
+let fallbackTimer: ReturnType<typeof setInterval> | null = null
+function syncFallback() {
+  if (fallbackTimer) {
+    clearInterval(fallbackTimer)
+    fallbackTimer = null
+  }
+  if (!connected.value) {
+    fallbackTimer = setInterval(() => {
       void refreshAgent()
       void refreshMessages()
       void refreshSessions()
-    }, 1500)
+    }, 5000)
   }
 }
-watch(isActive, syncPolling)
-watch(
-  () => agent.value?.status,
-  (status, previous) => {
-    // Final catch-up when a run settles; polling stops via the watch above.
-    if (previous && ACTIVE_STATUSES.includes(previous) && status && !ACTIVE_STATUSES.includes(status)) {
-      void refreshAgent()
-      void refreshMessages()
-      void refreshSessions()
-    }
-  },
-)
+watch(connected, syncFallback, { immediate: true })
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (fallbackTimer) clearInterval(fallbackTimer)
 })
 
 const runtimeError = ref('')
@@ -84,7 +87,6 @@ async function runAction(action: 'start' | 'stop' | 'restart') {
     await refreshAgent()
     await refreshAgents()
     await refreshSessions()
-    syncPolling()
   } catch (err) {
     runtimeError.value = (err as { message: string }).message
   } finally {
@@ -102,9 +104,7 @@ async function onSaved() {
 
 async function onMessageSent() {
   await refreshMessages()
-  // A queued instruction flips the entity into action shortly — arm polling.
   void refreshAgent()
-  syncPolling()
 }
 
 async function removeAgent() {

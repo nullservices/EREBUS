@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import type { DashboardStats, Project } from '~~/shared/types'
 
-const { data: stats } = await useFetch<DashboardStats>('/api/dashboard')
+const { data: stats, refresh: refreshStats } = await useFetch<DashboardStats>('/api/dashboard')
 const { data: projects } = await useFetch<Project[]>('/api/projects')
+
+// Any realtime payload refreshes the activity feed and counters.
+const { lastPayload } = useRealtime()
+watch(lastPayload, () => {
+  void refreshStats()
+})
 
 const working = computed(
   () => (stats.value?.agents.byStatus.WORKING ?? 0) + (stats.value?.agents.byStatus.THINKING ?? 0),

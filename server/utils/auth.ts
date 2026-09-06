@@ -69,10 +69,8 @@ export function destroySessionToken(token: string | undefined): void {
     .run(sha256hex(token))
 }
 
-export function getUser(event: H3Event): SessionUser | null {
-  const token = getCookie(event, SESSION_COOKIE)
-  if (!token) return null
-
+/** Validate a raw session token (shared by HTTP handlers and the WS upgrade). */
+export function validateSessionToken(token: string): SessionUser | null {
   const row = getSessionByTokenHash(sha256hex(token))
   if (!row) return null
 
@@ -87,6 +85,12 @@ export function getUser(event: H3Event): SessionUser | null {
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at,
   }
+}
+
+export function getUser(event: H3Event): SessionUser | null {
+  const token = getCookie(event, SESSION_COOKIE)
+  if (!token) return null
+  return validateSessionToken(token)
 }
 
 export function requireUser(event: H3Event): SessionUser {

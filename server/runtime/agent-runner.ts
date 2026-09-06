@@ -4,6 +4,7 @@ import { logEvent } from '../utils/events'
 import { getAgentById, type ProviderRow } from '../utils/models'
 import { createAdapterFor } from './providers/types'
 import { stopProcess, type ManagedProcess } from './process-manager'
+import { broadcast } from './realtime'
 import type { Agent, AgentStatus } from '../../shared/types'
 
 /**
@@ -38,6 +39,7 @@ function setAgentStatus(agentId: string, status: AgentStatus): void {
       "UPDATE agents SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
     )
     .run(status, agentId)
+  broadcast({ kind: 'agent.status', agentId, status })
 }
 
 function getProviderRowForAgent(agent: Agent): ProviderRow | undefined {

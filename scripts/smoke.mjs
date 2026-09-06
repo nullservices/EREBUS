@@ -124,6 +124,7 @@ check('create project', newProject.status === 200 && newProject.json?.name === '
 const agents = await req('GET', '/api/agents')
 check('agents list contains ARCHON', agents.status === 200 && agents.json?.some((a) => a.name === 'ARCHON'))
 check('new entities start OFFLINE', agents.json?.every((a) => a.status === 'OFFLINE'))
+const archonId = agents.json?.find((a) => a.name === 'ARCHON')?.id
 
 const vesper = await req('POST', '/api/agents', {
   name: 'VESPER',
@@ -180,6 +181,57 @@ const badLogin = await fetch(`${BASE}/api/auth/login`, {
 })
 check('wrong password → 401', badLogin.status === 401)
 
+// ── Phase III · realtime WebSocket ────────────────────────────────────
+
+const wsBase = BASE.replace(/^http/, 'ws')
+const sessionToken = cookie.split('=').slice(1).join('=')
+const wsPayloads = []
+let wsOpen = false
+const ws = new WebSocket(`${wsBase}/live?token=${encodeURIComponent(sessionToken)}`)
+await new Promise((resolve) => {
+  ws.onopen = () => {
+    wsOpen = true
+    resolve(null)
+  }
+  ws.onerror = () => resolve(null)
+  ws.onclose = () => resolve(null)
+  setTimeout(() => resolve(null), 8000)
+})
+check('websocket connects with session token', wsOpen)
+
+ws.onmessage = (ev) => {
+  const data = ev.data
+  if (typeof data === 'string') wsPayloads.push(data)
+  else if (data && typeof data.text === 'function') data.text().then((t) => wsPayloads.push(t))
+  else wsPayloads.push(String(data))
+}
+
+ws.send('ping')
+const pong = await waitFor(() => (wsPayloads.some((p) => p === 'pong') ? true : null), 8000)
+check('websocket ping/pong works', Boolean(pong))
+
+const wsMsg = await req('POST', `/api/agents/${archonId}/messages`, {
+  content: 'Realtime probe.',
+})
+const wsEvent = await waitFor(() => {
+  const found = wsPayloads.find((p) => p.includes(`"agentId":"${archonId}"`) && p.includes('"kind":"event"'))
+  return found ?? null
+}, 8000)
+check('event broadcast reaches websocket peer', Boolean(wsEvent), JSON.stringify(wsPayloads))
+
+let anonOpened = false
+const anon = new WebSocket(`${wsBase}/live`)
+await new Promise((resolve) => {
+  anon.onopen = () => {
+    anonOpened = true
+    resolve(null)
+  }
+  anon.onerror = () => resolve(null)
+  anon.onclose = () => resolve(null)
+  setTimeout(() => resolve(null), 6000)
+})
+check('websocket rejects unauthenticated connections', !anonOpened)
+
 // ── Notifications · real delivery to a local receiver ────────────────
 
 const chan = await req('POST', '/api/channels', {
@@ -216,8 +268,6 @@ const emptyChan = await req('POST', '/api/channels', {
 check('channel without event categories rejected', emptyChan.status === 400)
 
 // ── Phase II · agent runtime ─────────────────────────────────────────
-
-const archonId = agents.json?.find((a) => a.name === 'ARCHON')?.id
 
 // No provider → start refuses.
 const bare = await req('POST', '/api/agents', { name: 'NO_PROVIDER' })
@@ -305,6 +355,8 @@ check('unknown kind → 400', badKind.status === 400)
 const chanDelete = await req('DELETE', `/api/channels/${chan.json.id}`)
 check('channel deletion works', chanDelete.status === 200 && chanDelete.json?.ok === true)
 await new Promise((resolve) => receiver.close(resolve))
+ws.close()
+anon.close()
 
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures ? 1 : 0)
