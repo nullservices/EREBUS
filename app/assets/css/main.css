@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+/* ── EREBUS design tokens ─────────────────────────────────────────────
+   "An ancient intelligence buried inside a futuristic machine."
+   Near-black ground, hairline borders, muted ink, a single ember accent.
+   System fonts only — EREBUS works fully offline. */
+
+@theme {
+  --font-sans: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "Roboto Mono",
+    "Courier New", monospace;
+
+  --color-void: #070709;
+  --color-abyss: #0b0b0e;
+  --color-surface: #0f0f13;
+  --color-raised: #15151a;
+  --color-overlay: #1b1b21;
+  --color-line: #1d1d24;
+  --color-line-soft: #141419;
+
+  --color-ink: #e8e6e2;
+  --color-dim: #9d9aa4;
+  --color-faint: #62606b;
+
+  --color-ember: #d6a548;
+  --color-ember-dim: #847031;
+  --color-blood: #b3554e;
+  --color-moss: #779d6d;
+}
+
+@layer base {
+  html {
+    background: var(--color-void);
+  }
+  body {
+    background: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-ember) 26%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #23232b transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #23232b;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  select {
+    background: var(--color-abyss);
+  }
+  select option {
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  /* Section/caption label: 10px mono, wide tracking, uppercase. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+  }
+
+  .field {
+    width: 100%;
+    background: var(--color-abyss);
+    border: 1px solid var(--color-line);
+    padding: 0.5rem 0.75rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 150ms ease;
+  }
+  .field:focus {
+    border-color: color-mix(in srgb, var(--color-ember) 45%, transparent);
+  }
+  .field::placeholder {
+    color: color-mix(in srgb, var(--color-faint) 75%, transparent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-dim);
+    background: transparent;
+    border: 1px solid var(--color-line);
+    transition: all 150ms ease;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn:hover {
+    border-color: color-mix(in srgb, var(--color-dim) 55%, transparent);
+    color: var(--color-ink);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    color: var(--color-ember);
+    border-color: color-mix(in srgb, var(--color-ember) 55%, transparent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ember) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-ember) 75%, transparent);
+  }
+  .btn-danger {
+    color: var(--color-blood);
+    border-color: color-mix(in srgb, var(--color-blood) 45%, transparent);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-blood) 10%, transparent);
+  }
+}
