@@ -6,7 +6,7 @@ import { resolve, sep } from 'node:path'
 import { getDb } from '../../db'
 import { getAgentById } from '../../utils/models'
 import { createIntervention, resolveIntervention } from '../interventions'
-import { setAgentStatus } from '../agent-status'
+import { isAutoApproving, setAgentStatus } from '../agent-status'
 import { logEvent } from '../../utils/events'
 import { logTaskEvent, nextTaskNumber, serializeTask, TASK_SELECT, type TaskRow } from '../../utils/tasks'
 import { deniedCommandPattern } from '../security'
@@ -320,16 +320,26 @@ export async function executeToolCall(
   }
 
   if (levelNeedsApproval(level, definition)) {
-    setAgentStatus(agentId, 'WAITING_FOR_HUMAN')
-    const approved = await awaitApproval(
-      agentId,
-      `APPROVE TOOL CALL?\n\n${name}(${JSON.stringify(rawArgs, null, 2)})`,
-    )
-    if (!approved) {
-      setAgentStatus(agentId, 'IDLE')
-      return { content: `tool ${name} was denied by the operator`, isError: true }
+    if (isAutoApproving(agentId)) {
+      // Session-scoped auto-approve: run without pausing, but keep the
+      // record honest — every silently-approved call is logged.
+      logEvent({
+        type: 'agent.auto_approved',
+        agentId,
+        summary: `auto-approved tool call ${name} for ${agent.name}`,
+      })
+    } else {
+      setAgentStatus(agentId, 'WAITING_FOR_HUMAN')
+      const approved = await awaitApproval(
+        agentId,
+        `APPROVE TOOL CALL?\n\n${name}(${JSON.stringify(rawArgs, null, 2)})`,
+      )
+      if (!approved) {
+        setAgentStatus(agentId, 'IDLE')
+        return { content: `tool ${name} was denied by the operator`, isError: true }
+      }
+      setAgentStatus(agentId, 'WORKING')
     }
-    setAgentStatus(agentId, 'WORKING')
   }
 
   logEvent({ type: 'agent.tool_started', agentId, summary: `tool ${name} invoked by ${agent.name}` })

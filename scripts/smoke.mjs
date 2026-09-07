@@ -556,6 +556,50 @@ const roster = await req('POST', '/api/internal/tools/call', {
 })
 check('list_entities returns the roster', roster.json?.content?.includes('ARCHON'))
 
+// ── Auto-approve (session-scoped) ─────────────────────────────────────
+
+const aaGet = await req('GET', `/api/agents/${askAgent.json.id}/auto-approve`)
+check('auto-approve state readable (default off)', aaGet.status === 200 && aaGet.json?.autoApproving === false)
+
+const aaOn = await req('POST', `/api/agents/${askAgent.json.id}/auto-approve`, { enabled: true })
+check('auto-approve enables', aaOn.status === 200 && aaOn.json?.autoApproving === true)
+
+const aaCall = await req('POST', '/api/internal/tools/call', {
+  agentId: askAgent.json.id,
+  name: 'fs_write',
+  args: { path: 'auto.txt', content: 'no pause' },
+})
+check(
+  'auto-approved call completes without pausing',
+  aaCall.json?.isError === false && aaCall.json?.content?.includes('written'),
+  JSON.stringify(aaCall.json),
+)
+
+const aaPending = await req('GET', `/api/interventions?agentId=${askAgent.json.id}&status=PENDING`)
+check('no intervention raised while auto-approving', aaPending.json?.length === 0)
+
+const aaEvents = await req('GET', '/api/events?limit=50')
+check('auto-approval recorded in activity', aaEvents.json?.some((e) => e.type === 'agent.auto_approved'))
+
+const aaOff = await req('POST', `/api/agents/${askAgent.json.id}/auto-approve`, { enabled: false })
+check('auto-approve disables', aaOff.status === 200 && aaOff.json?.autoApproving === false)
+
+// A pending approval is auto-resolved when auto-approve is enabled mid-wait.
+const pendingCallPromise = req('POST', '/api/internal/tools/call', {
+  agentId: askAgent.json.id,
+  name: 'fs_write',
+  args: { path: 'auto2.txt', content: 'x' },
+})
+const pendingApproval = await waitFor(async () => {
+  const list = await req('GET', `/api/interventions?agentId=${askAgent.json.id}&status=PENDING`)
+  return list.json?.length ? list.json[0] : null
+}, 10000)
+check('approval raised again after disabling', Boolean(pendingApproval))
+await req('POST', `/api/agents/${askAgent.json.id}/auto-approve`, { enabled: true })
+const resumedCall = await pendingCallPromise
+check('enabling auto-approve resolves the pending wait', resumedCall.json?.isError === false, JSON.stringify(resumedCall.json))
+await req('POST', `/api/agents/${askAgent.json.id}/auto-approve`, { enabled: false })
+
 rmSync(toolDir, { recursive: true, force: true })
 
 // ── Phase VII · security ──────────────────────────────────────────────

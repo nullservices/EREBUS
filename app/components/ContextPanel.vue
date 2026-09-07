@@ -17,6 +17,7 @@ const props = defineProps<{
   children: Agent[]
   lastSession?: SessionInfo | null
   currentTask?: Task | null
+  autoApproving?: boolean
 }>()
 
 const TOOL_LABELS: Record<string, string> = {
@@ -135,6 +136,12 @@ function fmtDate(iso: string): string {
             <span class="uppercase text-faint">{{ agent.permissions[tool] ?? '—' }}</span>
           </li>
         </ul>
+        <div
+          v-if="autoApproving"
+          class="mt-2 border-t border-line-soft pt-2 font-mono text-[9.5px] tracking-[0.12em] text-arcane"
+        >
+          ◈ AUTO-APPROVING — APPROVAL TOOLS RUN WITHOUT PAUSING (SESSION-SCOPED)
+        </div>
       </section>
 
       <section>

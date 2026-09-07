@@ -1,10 +1,11 @@
 import type { EventRecord } from '~~/shared/types'
 
 export interface RealtimePayload {
-  kind: 'event' | 'agent.status'
+  kind: 'event' | 'agent.status' | 'agent.auto-approve'
   event?: EventRecord
   agentId?: string
   status?: string
+  enabled?: boolean
 }
 
 const connected = useState('erebus-realtime-connected', () => false)

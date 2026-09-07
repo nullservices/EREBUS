@@ -201,10 +201,13 @@ protocol tools: entities, tasks, messaging, operator questions).
 | `deny` | refused |
 
 Approval requests pause the entity (`WAITING_FOR_HUMAN`), surface as a
-banner in the UI, and resume with your answer. Terminal commands are
-additionally checked against the operator-maintained regex deny list
-(Settings → Command Restrictions). Filesystem tools are confined to the
-entity's working directory.
+banner in the UI, and resume with your answer. An **AUTO-APPROVE** toggle
+(session-scoped, resets when the entity stops) lets a trusted entity work
+without pausing — every silently-approved call is still logged as an
+`auto_approved` event, and the banner's **APPROVE ALL** button turns it on
+from the prompt itself. Terminal commands are additionally checked against
+the operator-maintained regex deny list (Settings → Command Restrictions).
+Filesystem tools are confined to the entity's working directory.
 
 ## Tasks & orchestration
 

@@ -4,7 +4,7 @@ import { logEvent } from '../utils/events'
 import { getAgentById, type ProviderRow } from '../utils/models'
 import { createAdapterFor } from './providers/types'
 import { stopProcess, type ManagedProcess } from './process-manager'
-import { setAgentStatus } from './agent-status'
+import { resetAutoApprove, setAgentStatus } from './agent-status'
 import { pendingInterventionsFor } from './interventions'
 import { processAgentOutput } from './orchestration'
 import type { Agent } from '../../shared/types'
@@ -123,6 +123,7 @@ export async function stopAgent(agentId: string): Promise<void> {
 
   runners.delete(agentId)
   queues.delete(agentId)
+  resetAutoApprove(agentId)
   setAgentStatus(agentId, 'OFFLINE')
   const agent = getAgentById(agentId)
   logEvent({ type: 'agent.stopped', agentId, summary: `entity ${agent?.name ?? agentId} stopped` })

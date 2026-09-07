@@ -9,6 +9,7 @@ import type { EventRecord } from '../../shared/types'
 export type RealtimePayload =
   | { kind: 'event'; event: EventRecord }
   | { kind: 'agent.status'; agentId: string; status: string }
+  | { kind: 'agent.auto-approve'; agentId: string; enabled: boolean }
 
 interface PeerLike {
   send(data: string): void

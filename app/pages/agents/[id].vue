@@ -23,6 +23,48 @@ const { data: interventions, refresh: refreshInterventions } = await useFetch<In
 
 const pendingIntervention = computed(() => (interventions.value ?? [])[0] ?? null)
 
+const { data: autoApproveState, refresh: refreshAutoApprove } = await useFetch<{ autoApproving: boolean }>(
+  `/api/agents/${agentId.value}/auto-approve`,
+)
+const autoApproving = computed(() => autoApproveState.value?.autoApproving ?? false)
+
+async function toggleAutoApprove() {
+  try {
+    const { request } = useApi()
+    await request(`/agents/${agentId.value}/auto-approve`, {
+      method: 'POST',
+      body: { enabled: !autoApproving.value },
+    })
+    await refreshAutoApprove()
+    await refreshInterventions()
+    await refreshAgent()
+  } catch (err) {
+    runtimeError.value = (err as { message: string }).message
+  }
+}
+
+async function approveAll() {
+  const intervention = pendingIntervention.value
+  if (!intervention) return
+  try {
+    const { request } = useApi()
+    await request(`/interventions/${intervention.id}`, {
+      method: 'PATCH',
+      body: { resolution: 'APPROVE' },
+    })
+    await request(`/agents/${agentId.value}/auto-approve`, {
+      method: 'POST',
+      body: { enabled: true },
+    })
+    await refreshAutoApprove()
+    await refreshInterventions()
+    await refreshAgent()
+    await refreshMessages()
+  } catch (err) {
+    interventionError.value = (err as { message: string }).message
+  }
+}
+
 const interventionResponse = ref('')
 const interventionBusy = ref(false)
 const interventionError = ref('')
@@ -100,6 +142,9 @@ watch(lastPayload, (payload) => {
   if (payload.kind === 'event' && payload.event?.type.startsWith('intervention')) {
     void refreshInterventions()
     void refreshAgent()
+  }
+  if (payload.kind === 'agent.auto-approve' && touches(payload.agentId)) {
+    void refreshAutoApprove()
   }
 })
 
@@ -204,6 +249,15 @@ async function removeAgent() {
             START
           </button>
           <template v-else>
+            <button
+              class="btn"
+              :class="autoApproving ? 'btn-primary' : ''"
+              :title="autoApproving ? 'Approval-gated tools run without pausing (resets on stop)' : 'Auto-approve approval-gated tool calls for this session'"
+              :disabled="runtimeBusy"
+              @click="toggleAutoApprove"
+            >
+              AUTO-APPROVE{{ autoApproving ? ' ON' : '' }}
+            </button>
             <button class="btn" :disabled="runtimeBusy" @click="runAction('restart')">RESTART</button>
             <button class="btn btn-danger" :disabled="runtimeBusy" @click="runAction('stop')">STOP</button>
           </template>
@@ -231,6 +285,9 @@ async function removeAgent() {
           >
             {{ option }}
           </button>
+          <button class="btn" :disabled="interventionBusy" @click="approveAll">
+            APPROVE ALL — STOP ASKING THIS SESSION
+          </button>
         </div>
         <div v-else class="flex items-stretch gap-2">
           <input
@@ -242,6 +299,9 @@ async function removeAgent() {
           />
           <button class="btn btn-primary" :disabled="interventionBusy || !interventionResponse.trim()" @click="respondToIntervention()">
             RESPOND
+          </button>
+          <button class="btn" :disabled="interventionBusy" @click="approveAll">
+            APPROVE ALL
           </button>
         </div>
         <div v-if="interventionError" class="mt-1.5 font-mono text-[10px] text-blood">{{ interventionError }}</div>
@@ -257,6 +317,7 @@ async function removeAgent() {
       :children="children"
       :last-session="lastSession"
       :current-task="currentTask"
+      :auto-approving="autoApproving"
     />
 
     <Modal :open="showEdit" title="CONFIGURE ENTITY" @close="showEdit = false">
