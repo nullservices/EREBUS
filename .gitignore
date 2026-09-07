@@ -8,6 +8,8 @@ dist/
 
 # Local data — SQLite database, secret keys, sessions. Never commit.
 data/
+data-*/
+*.key
 
 # Environment
 .env
