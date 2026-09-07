@@ -1,5 +1,5 @@
 import { decryptSecret } from '../../utils/crypto'
-import { definitionsForEntity } from '../tools/definitions'
+import { definitionsForEntity, toOpenAiTools } from '../tools/definitions'
 import { executeToolCall } from '../tools/execute'
 import type { ModelOption } from '../../../shared/types'
 import type { ProviderRow } from '../../utils/models'
@@ -62,10 +62,12 @@ interface StreamOutcome {
   output: number
 }
 
+type OpenAiTool = { type: 'function'; function: { name: string; description: string; parameters: unknown } }
+
 async function streamChat(
   config: ProviderRow,
   messages: ApiMessage[],
-  tools: ReturnType<typeof definitionsForEntity>,
+  tools: OpenAiTool[],
   signal: AbortSignal,
   onDelta: (delta: string) => void,
 ): Promise<StreamOutcome> {
@@ -164,7 +166,7 @@ function adapter(): ProviderAdapter {
         { role: 'user' as const, content: options.instruction },
       ]
 
-      const tools = definitionsForEntity(options.tools ?? [])
+      const tools = toOpenAiTools(definitionsForEntity(options.tools ?? []))
 
       const controller = new AbortController()
       const forwardAbort = () => controller.abort()

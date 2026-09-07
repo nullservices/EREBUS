@@ -192,6 +192,20 @@ export function definitionByName(name: string): ToolDefinition | undefined {
   return TOOL_DEFINITIONS.find((d) => d.name === name)
 }
 
+/** OpenAI/DeepSeek function-calling shape (type + function wrapper). */
+export function toOpenAiTools(
+  definitions: ToolDefinition[],
+): { type: 'function'; function: { name: string; description: string; parameters: unknown } }[] {
+  return definitions.map((d) => ({
+    type: 'function' as const,
+    function: {
+      name: d.name,
+      description: d.description,
+      parameters: d.inputSchema,
+    },
+  }))
+}
+
 /** Whether a permission level allows a tool to run at all. */
 export function levelAllows(level: PermissionLevel | undefined, definition: ToolDefinition): boolean {
   if (!level || level === 'deny') return false
