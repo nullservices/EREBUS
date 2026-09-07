@@ -132,11 +132,20 @@ operator account → first project → optional provider key → ARCHON
 ## LAN access
 
 ```bash
-npm run dev -- --host 0.0.0.0
+npm run dev:lan
+```
+
+or, if you prefer the environment variable:
+
+```bash
+# PowerShell
+$env:NITRO_HOST = "0.0.0.0"; npm run dev
 ```
 
 Then from any device on your network: `http://<HOST-IP>:4521`
 
+> npm 12 intercepts flags forwarded with `--` (`npm run dev -- --host …`
+> fails), hence the dedicated `dev:lan` script and the env-var form.
 > Keep the server bound to `127.0.0.1` on untrusted networks. LAN access is
 > plain HTTP by design — see the [security model](#security-model).
 
