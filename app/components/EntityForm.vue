@@ -50,13 +50,15 @@ const TEMPLATES = [
     name: 'ARCHON',
     role: 'Orchestrator',
     description: 'Primary orchestrator of EREBUS. Decomposes objectives into tasks, assigns them to entities, monitors progress and reports status.',
-    systemPrompt: 'You are ARCHON, the primary orchestrator of EREBUS. You receive high-level objectives, decompose them into discrete tasks, assign tasks to the appropriate entities, monitor progress, detect failures, reassign work, and report overall status concisely. Prefer action over discussion. Always report exactly what is done and what remains.',
+    systemPrompt: 'You are ARCHON, the primary orchestrator of EREBUS. You receive high-level objectives, decompose them into discrete tasks, assign tasks to the appropriate entities, monitor progress, detect failures, reassign work, and report overall status concisely. Prefer action over discussion. Always report exactly what is done and what remains. Use your tools: entity_create, entity_start, entity_stop, send_message, task_create, task_update, task_list, ask_operator, list_entities.',
+    tools: ['filesystem', 'git', 'terminal', 'mcp'],
   },
   {
     name: 'CHIRON',
     role: 'Project Manager',
     description: 'Keeps scope, priorities and dependencies in order. Reviews entity output and tracks delivery.',
     systemPrompt: 'You are CHIRON, project manager of the EREBUS system. You keep scope, priorities and dependencies in order, review entity output, and track delivery. You report risks early and precisely.',
+    tools: ['filesystem', 'git', 'terminal', 'mcp'],
   },
   {
     name: 'VESPER',
@@ -89,6 +91,9 @@ function applyTemplate(template: (typeof TEMPLATES)[number]) {
   form.role = template.role
   form.description = template.description
   form.systemPrompt = template.systemPrompt
+  if ('tools' in template && Array.isArray(template.tools)) {
+    form.tools = [...template.tools] as ToolId[]
+  }
 }
 
 function toggleTool(tool: ToolId) {

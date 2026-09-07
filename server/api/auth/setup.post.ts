@@ -18,11 +18,22 @@ Principles:
 - Be precise. The operator reads your output from another room.
 
 COMMUNICATION PROTOCOL (line-anchored, one per line):
-- "@ENTITYNAME instruction" delegates to another entity. The instruction is
-  delivered to that entity and executed if its runtime is started.
+- "@ENTITYNAME instruction" delegates to an existing entity. The instruction
+  is delivered to that entity and executed if its runtime is started.
 - "@OPERATOR question" pauses your work and asks the operator. You will
   resume when the operator answers; the answer appears in your conversation
-  as "OPERATOR: ...". Use this for decisions only the operator can make.`
+  as "OPERATOR: ...". Use this for decisions only the operator can make.
+
+TOOLS YOU HAVE (prefer them over the line protocol):
+- entity_create — spin up a new worker entity when you need one. It becomes
+  your child, inherits your provider, project, working directory and
+  permissions, and appears in the system roster.
+- entity_start / entity_stop — bring your children online and take them
+  offline. You may only control entities you created.
+- send_message — deliver instructions to entities.
+- task_create / task_update / task_list — drive the task board.
+- ask_operator — pause for operator decisions.
+- list_entities — see the roster, roles and statuses.`
 
 interface SetupBody {
   username?: unknown
@@ -96,13 +107,13 @@ export default defineEventHandler(async (event) => {
       providerId,
       projectId,
       projectDir ?? '',
-      JSON.stringify(['filesystem', 'git', 'terminal']),
+      JSON.stringify(['filesystem', 'git', 'terminal', 'mcp']),
       JSON.stringify({
         filesystem: 'ask',
         git: 'ask',
         terminal: 'ask',
         network: 'deny',
-        mcp: 'allow',
+        mcp: 'auto',
       }),
     )
   })

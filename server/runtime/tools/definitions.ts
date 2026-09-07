@@ -167,6 +167,48 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     destructive: false,
   },
   {
+    name: 'entity_create',
+    description:
+      'Create a new entity as your child. It inherits your provider, project, working directory, tools and permissions (never more than yours), starts OFFLINE, and appears in the system roster.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Entity name (2-32 chars, letters/digits/-/_)' },
+        role: { type: 'string', description: 'Optional role, e.g. Developer' },
+        description: { type: 'string', description: 'Optional description' },
+        system_prompt: { type: 'string', description: 'Optional system prompt' },
+      },
+      required: ['name'],
+    },
+    permission: 'mcp',
+    mutating: true,
+    destructive: false,
+  },
+  {
+    name: 'entity_start',
+    description: 'Start the runtime of one of your child entities so it can execute instructions.',
+    inputSchema: {
+      type: 'object',
+      properties: { entity: { type: 'string', description: 'Child entity name' } },
+      required: ['entity'],
+    },
+    permission: 'mcp',
+    mutating: true,
+    destructive: false,
+  },
+  {
+    name: 'entity_stop',
+    description: 'Stop the runtime of one of your child entities.',
+    inputSchema: {
+      type: 'object',
+      properties: { entity: { type: 'string', description: 'Child entity name' } },
+      required: ['entity'],
+    },
+    permission: 'mcp',
+    mutating: true,
+    destructive: false,
+  },
+  {
     name: 'ask_operator',
     description:
       'Pause and ask the operator a question. The run waits until the operator answers; the answer is injected into the conversation.',

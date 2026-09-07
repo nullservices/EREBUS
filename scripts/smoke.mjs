@@ -600,6 +600,78 @@ const resumedCall = await pendingCallPromise
 check('enabling auto-approve resolves the pending wait', resumedCall.json?.isError === false, JSON.stringify(resumedCall.json))
 await req('POST', `/api/agents/${askAgent.json.id}/auto-approve`, { enabled: false })
 
+// ── Self-orchestration: agents creating and running their own team ────
+
+const lead = await req('POST', '/api/agents', {
+  name: 'TEAM_LEAD',
+  role: 'Orchestrator',
+  providerId: deepseek.id,
+  workingDir: toolDir,
+  tools: ['mcp', 'filesystem', 'terminal'],
+  permissions: { mcp: 'allow', filesystem: 'allow', terminal: 'allow' },
+})
+check('team lead entity created', lead.status === 200)
+
+const createChild = await req('POST', '/api/internal/tools/call', {
+  agentId: lead.json.id,
+  name: 'entity_create',
+  args: { name: 'WORKER_1', role: 'Developer' },
+})
+check('entity_create makes a child', createChild.json?.isError === false && /WORKER_1/.test(createChild.json?.content ?? ''), JSON.stringify(createChild.json))
+
+const rosterAfter = await req('GET', '/api/agents')
+const worker1 = rosterAfter.json?.find((a) => a.name === 'WORKER_1')
+check('child appears in the roster with the creator as parent', Boolean(worker1 && worker1.parentId === lead.json.id))
+check('child inherits creator tools', worker1?.tools?.includes('terminal') === true)
+check('child starts OFFLINE', worker1?.status === 'OFFLINE')
+
+const dupChild = await req('POST', '/api/internal/tools/call', {
+  agentId: lead.json.id,
+  name: 'entity_create',
+  args: { name: 'WORKER_1' },
+})
+check('duplicate child name refused', dupChild.json?.isError === true)
+
+const startChild = await req('POST', '/api/internal/tools/call', {
+  agentId: lead.json.id,
+  name: 'entity_start',
+  args: { entity: 'WORKER_1' },
+})
+check('entity_start brings the child online', startChild.json?.isError === false)
+check('child runtime actually started', (await req('GET', `/api/agents/${worker1.id}`)).json?.status === 'IDLE')
+
+const rogueStart = await req('POST', '/api/internal/tools/call', {
+  agentId: protoAgent.json.id,
+  name: 'entity_start',
+  args: { entity: 'WORKER_1' },
+})
+check('non-parent cannot control the child', rogueStart.json?.isError === true && /child/i.test(rogueStart.json?.content ?? ''), JSON.stringify(rogueStart.json))
+
+const stopChild = await req('POST', '/api/internal/tools/call', {
+  agentId: lead.json.id,
+  name: 'entity_stop',
+  args: { entity: 'WORKER_1' },
+})
+check('entity_stop takes the child offline', stopChild.json?.isError === false)
+check('child stopped for real', (await req('GET', `/api/agents/${worker1.id}`)).json?.status === 'OFFLINE')
+
+const narrowLead = await req('POST', '/api/agents', {
+  name: 'TEAM_LEAD2',
+  tools: ['mcp'],
+  permissions: { mcp: 'allow' },
+})
+await req('POST', '/api/internal/tools/call', {
+  agentId: narrowLead.json.id,
+  name: 'entity_create',
+  args: { name: 'WORKER_2' },
+})
+const worker2 = (await req('GET', '/api/agents')).json?.find((a) => a.name === 'WORKER_2')
+check(
+  'child cannot exceed creator tools',
+  worker2?.tools?.length === 1 && worker2?.tools?.[0] === 'mcp',
+  JSON.stringify(worker2?.tools),
+)
+
 rmSync(toolDir, { recursive: true, force: true })
 
 // ── Phase VII · security ──────────────────────────────────────────────

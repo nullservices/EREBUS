@@ -268,6 +268,76 @@ async function executeSendMessage(agent: Agent, input: { entity?: string; conten
   return { content: `delivered to ${target.name}`, isError: false }
 }
 
+// ── Entity lifecycle tools (self-orchestration) ──────────────────────
+
+function childEntityByName(agent: Agent, name: string): { id: string; name: string } | undefined {
+  return getDb()
+    .prepare('SELECT id, name FROM agents WHERE UPPER(name) = UPPER(?) AND parent_id = ?')
+    .get(name, agent.id) as { id: string; name: string } | undefined
+}
+
+async function executeEntityCreate(agent: Agent, input: Record<string, unknown>): Promise<ToolResult> {
+  const name = String(input.name ?? '').trim()
+  if (!/^[A-Za-z0-9_-]{2,32}$/.test(name)) {
+    throw new Error('entity name must be 2-32 characters (letters, digits, -, _)')
+  }
+  const db = getDb()
+  if (db.prepare('SELECT 1 FROM agents WHERE UPPER(name) = UPPER(?)').get(name)) {
+    throw new Error(`an entity named ${name} already exists`)
+  }
+
+  // Children never exceed their creator: same provider, project, working
+  // directory, tools and permissions — no escalation path.
+  const id = randomUUID()
+  db.prepare(
+    `INSERT INTO agents
+       (id, name, role, description, system_prompt, provider_id, project_id,
+        parent_id, working_dir, status, tools_json, permissions_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OFFLINE', ?, ?)`,
+  ).run(
+    id,
+    name,
+    String(input.role ?? 'Worker'),
+    String(input.description ?? ''),
+    String(input.system_prompt ?? ''),
+    agent.providerId,
+    agent.projectId,
+    agent.id,
+    agent.workingDir,
+    JSON.stringify(agent.tools),
+    JSON.stringify(agent.permissions),
+  )
+
+  logEvent({
+    type: 'entity.created',
+    agentId: id,
+    projectId: agent.projectId,
+    summary: `entity ${name} created by ${agent.name}`,
+    data: { createdByAgentId: agent.id },
+  })
+  return { content: `entity ${name} created (OFFLINE) — start it with entity_start`, isError: false }
+}
+
+async function executeEntityStart(agent: Agent, input: { entity?: string }): Promise<ToolResult> {
+  const target = childEntityByName(agent, String(input.entity ?? ''))
+  if (!target) {
+    throw new Error(`no child entity named ${input.entity} — agents may only control their own children`)
+  }
+  const { startAgent } = await import('../agent-runner')
+  await startAgent(target.id)
+  return { content: `entity ${target.name} started`, isError: false }
+}
+
+async function executeEntityStop(agent: Agent, input: { entity?: string }): Promise<ToolResult> {
+  const target = childEntityByName(agent, String(input.entity ?? ''))
+  if (!target) {
+    throw new Error(`no child entity named ${input.entity} — agents may only control their own children`)
+  }
+  const { stopAgent } = await import('../agent-runner')
+  await stopAgent(target.id)
+  return { content: `entity ${target.name} stopped`, isError: false }
+}
+
 async function executeAskOperator(agent: Agent, input: { question?: string; options?: string }): Promise<ToolResult> {
   const question = String(input.question ?? '').trim()
   if (!question) throw new Error('ask_operator requires a question')
@@ -376,6 +446,15 @@ export async function executeToolCall(
         break
       case 'send_message':
         result = await executeSendMessage(agent, rawArgs as { entity?: string; content?: string })
+        break
+      case 'entity_create':
+        result = await executeEntityCreate(agent, rawArgs)
+        break
+      case 'entity_start':
+        result = await executeEntityStart(agent, rawArgs as { entity?: string })
+        break
+      case 'entity_stop':
+        result = await executeEntityStop(agent, rawArgs as { entity?: string })
         break
       case 'ask_operator':
         result = await executeAskOperator(agent, rawArgs as { question?: string; options?: string })
