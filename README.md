@@ -334,6 +334,7 @@ built so integrations are additions, not rewrites.
 | Port in use | `NITRO_PORT=4522 npm run dev` |
 | `claude CLI not found on PATH` | automatic resolution covers native installs (`%USERPROFILE%\.local\bin\claude.exe`) and npm shims; install the CLI and authenticate first |
 | Entities stay `ERROR` | read the error row in the conversation — usually a provider key, CLI auth, or a denied tool |
+| Forgot the operator password | `npm run reset-password` (keeps all data; signs out existing sessions) |
 | Reset everything | stop the server, delete `data/`, run again → fresh initialization |
 | npm crashes with `edgesOut` | `npm install -g npm@latest` (npm 10.8.x arborist bug) |
 

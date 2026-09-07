@@ -11,6 +11,7 @@
     "preview": "node .output/server/index.mjs",
     "typecheck": "nuxt typecheck",
     "setup": "node scripts/setup.mjs",
+    "reset-password": "node scripts/reset-password.mjs",
     "smoke": "node scripts/smoke.mjs",
     "postinstall": "nuxt prepare"
   },
