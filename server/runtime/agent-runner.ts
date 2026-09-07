@@ -315,14 +315,24 @@ function loadHistory(
 ): { role: 'user' | 'assistant'; content: string }[] {
   const rows = getDb()
     .prepare(
-      `SELECT role, content FROM messages
+      `SELECT role, sender_agent_id, content FROM messages
        WHERE agent_id = ? AND kind = 'text' AND role IN ('user','agent')
        ORDER BY created_at DESC, id DESC LIMIT ?`,
     )
-    .all(agentId, limit) as { role: string; content: string }[]
+    .all(agentId, limit) as { role: string; sender_agent_id: string | null; content: string }[]
   return rows
     .reverse()
-    .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }))
+    .map((r) => ({
+      // The provider API only knows user/assistant. This entity's own
+      // replies are assistant turns; instructions received from another
+      // entity are functionally user turns.
+      role: r.role === 'agent'
+        ? r.sender_agent_id
+          ? ('user' as const)
+          : ('assistant' as const)
+        : ('user' as const),
+      content: r.content,
+    }))
     .filter((m) => m.content.length > 0)
 }
 
