@@ -322,6 +322,24 @@ $env:EREBUS_DATA_DIR="./data-smoke"; $env:NITRO_PORT="4524"; node .output/server
 EREBUS_URL=http://127.0.0.1:4524 node scripts/smoke.mjs
 ```
 
+For a **real-provider end-to-end run** (requires a working DeepSeek key in
+the environment, used only in memory — never written to disk):
+
+```bash
+$env:EREBUS_REAL_KEY="sk-..."; node scripts/e2e-real.mjs
+```
+
+The e2e script boots a fresh isolated instance flow: setup with the real
+key, starts ARCHON, queues an instruction, and asserts a real streamed
+reply plus the completion event.
+
+```bash
+npm run build
+# fresh data dir + isolated port:
+$env:EREBUS_DATA_DIR="./data-smoke"; $env:NITRO_PORT="4524"; node .output/server/index.mjs
+EREBUS_URL=http://127.0.0.1:4524 node scripts/smoke.mjs
+```
+
 Adding a provider means implementing one adapter interface and registering
 it; adding a tool means one entry in the tool registry. Both surfaces were
 built so integrations are additions, not rewrites.
