@@ -16,7 +16,7 @@ import type { ProviderAdapter, RunOptions, RunResult, TestResult } from './types
 
 const DEFAULT_TIMEOUT_MS = 180_000
 const TEST_TIMEOUT_MS = 15_000
-const MAX_TOOL_TURNS = 10
+const MAX_TOOL_TURNS = 15
 
 type Role = 'system' | 'user' | 'assistant' | 'tool'
 
@@ -194,7 +194,29 @@ function adapter(): ProviderAdapter {
             }
           }
           if (turn === MAX_TOOL_TURNS) {
-            throw new Error(`Tool loop exceeded ${MAX_TOOL_TURNS} turns`)
+            // The model kept probing without a final answer. Rather than
+            // failing the whole run, force one last call WITHOUT tools so
+            // the entity answers with what it has found.
+            options.onEvent({
+              type: 'status',
+              data: { phase: 'thinking', note: 'tool-call limit reached — requesting final answer' },
+            })
+            messages.push({
+              role: 'user',
+              content:
+                'You have reached the tool-call limit. Stop using tools and answer now using what you already found.',
+            })
+            const forced = await streamChat(config, messages, [], controller.signal, (delta) => {
+              finalText += delta
+              options.onEvent({ type: 'text', content: delta })
+            })
+            totalInput += forced.input
+            totalOutput += forced.output
+            return {
+              text: finalText || forced.text,
+              tokenUsageIn: totalInput || null,
+              tokenUsageOut: totalOutput || null,
+            }
           }
 
           // Append the assistant tool-call message, execute each call,
@@ -211,7 +233,7 @@ function adapter(): ProviderAdapter {
           for (const call of outcome.toolCalls) {
             options.onEvent({
               type: 'status',
-              data: { tool: call.name, phase: 'working' },
+              data: { tool: call.name, phase: 'working', args: call.arguments },
             })
             let result: { content: string; isError: boolean }
             try {

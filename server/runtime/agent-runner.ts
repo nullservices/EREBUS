@@ -42,11 +42,17 @@ function getProviderRowForAgent(agent: Agent): ProviderRow | undefined {
     | undefined
 }
 
-function insertMessageRow(agentId: string, role: string, kind: string, content: string): string {
+function insertMessageRow(
+  agentId: string,
+  role: string,
+  kind: string,
+  content: string,
+  meta?: Record<string, unknown>,
+): string {
   const id = randomUUID()
   getDb()
-    .prepare('INSERT INTO messages (id, agent_id, role, kind, content) VALUES (?, ?, ?, ?, ?)')
-    .run(id, agentId, role, kind, content)
+    .prepare('INSERT INTO messages (id, agent_id, role, kind, content, meta) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, agentId, role, kind, content, meta ? JSON.stringify(meta) : null)
   return id
 }
 
@@ -264,7 +270,9 @@ async function runInstruction(
         if (event.type === 'status' && event.data) {
           const data = event.data
           if (typeof data.tool === 'string') {
-            insertMessageRow(agentId, 'tool', 'tool_call', data.tool)
+            insertMessageRow(agentId, 'tool', 'tool_call', data.tool, {
+              args: typeof data.args === 'string' ? data.args.slice(0, 500) : null,
+            })
             setAgentStatus(agentId, 'WORKING')
           } else if (data.phase === 'thinking') {
             setAgentStatus(agentId, 'THINKING')

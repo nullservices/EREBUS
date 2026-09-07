@@ -27,7 +27,7 @@ function labelFor(message: Message): string {
 }
 
 function isMetaRow(message: Message): boolean {
-  return message.kind === 'event' || message.role === 'system' || message.role === 'tool'
+  return message.kind === 'event' || message.role === 'system'
 }
 </script>
 

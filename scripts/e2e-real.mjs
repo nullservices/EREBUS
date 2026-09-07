@@ -72,9 +72,34 @@ for (let i = 0; i < 90; i++) {
 console.log(reply ? `OK  real reply: ${reply.content.trim().slice(0, 200)}` : 'FAIL no assistant reply')
 console.log(`    final status: ${finalStatus}`)
 
+// Second phase: a real tool loop under auto-approve.
+await req('POST', `/api/agents/${archonId}/auto-approve`, { enabled: true })
+const beforeCount = (await req('GET', `/api/agents/${archonId}/messages`)).json.length
+const msg2 = await req('POST', `/api/agents/${archonId}/messages`, {
+  content: 'List the files in the working directory and tell me how many entries there are.',
+})
+console.log(msg2.status === 200 && msg2.json?.queued ? 'OK  tool instruction queued' : 'FAIL tool queue')
+
+let toolReply = null
+let toolRow = null
+let finalStatus2 = null
+for (let i = 0; i < 120; i++) {
+  await sleep(1000)
+  const msgs = (await req('GET', `/api/agents/${archonId}/messages`)).json ?? []
+  const after = msgs.slice(beforeCount)
+  toolReply = after.find((m) => m.role === 'agent' && m.content.trim())
+  toolRow = after.find((m) => m.role === 'tool')
+  const agent = await req('GET', `/api/agents/${archonId}`)
+  finalStatus2 = agent.json?.status
+  if (toolReply && finalStatus2 === 'IDLE') break
+}
+console.log(toolRow ? `OK  tool call recorded: ${toolRow.content}${toolRow.meta?.args ? ` ${toolRow.meta.args}` : ''}` : 'FAIL no tool row')
+console.log(toolReply ? `OK  tool-loop reply: ${toolReply.content.trim().slice(0, 200)}` : 'FAIL no tool-loop reply')
+console.log(`    final status: ${finalStatus2}`)
+
 await req('POST', `/api/agents/${archonId}/stop`)
 const events = await req('GET', '/api/events?limit=20')
 const completed = (events.json ?? []).some((e) => e.type === 'agent.completed')
 console.log(completed ? 'OK  agent.completed recorded' : 'FAIL no completion event')
 
-process.exit(reply && finalStatus === 'IDLE' && completed ? 0 : 1)
+process.exit(reply && finalStatus === 'IDLE' && completed && toolReply && toolRow && finalStatus2 === 'IDLE' ? 0 : 1)
