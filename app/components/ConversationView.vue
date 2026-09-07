@@ -29,6 +29,47 @@ function labelFor(message: Message): string {
 function isMetaRow(message: Message): boolean {
   return message.kind === 'event' || message.role === 'system'
 }
+
+// Collapsible tool/command rows — compact by default like a dev console.
+const expanded = reactive(new Set<string>())
+
+function toggleExpanded(id: string) {
+  if (expanded.has(id)) {
+    expanded.delete(id)
+  } else {
+    expanded.add(id)
+  }
+}
+
+function compactArgs(meta: Record<string, unknown> | null): string {
+  const raw = typeof meta?.args === 'string' ? meta.args : null
+  if (!raw) return ''
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>
+    const parts = Object.entries(obj).map(
+      ([key, value]) => `${key}: ${typeof value === 'string' ? JSON.stringify(value) : String(value)}`,
+    )
+    const joined = parts.join(' · ')
+    return joined.length > 90 ? `${joined.slice(0, 90)}…` : joined
+  } catch {
+    return raw.length > 90 ? `${raw.slice(0, 90)}…` : raw
+  }
+}
+
+function prettyMeta(meta: Record<string, unknown>): string {
+  const raw = typeof meta?.args === 'string' ? meta.args : null
+  if (!raw) return JSON.stringify(meta, null, 2)
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2)
+  } catch {
+    return raw
+  }
+}
+
+function compactLine(line: string): string {
+  const oneLine = line.replace(/\s+/g, ' ').trim()
+  return oneLine.length > 120 ? `${oneLine.slice(0, 120)}…` : oneLine
+}
 </script>
 
 <template>
@@ -47,24 +88,54 @@ function isMetaRow(message: Message): boolean {
           ◆ {{ message.content }}
         </div>
 
-        <!-- tool rows: framed mono block -->
+        <!-- tool rows: one compact line, expandable -->
         <div v-else-if="message.role === 'tool'" class="border border-line bg-abyss">
-          <div class="flex items-center justify-between border-b border-line px-3 py-1.5">
-            <span class="font-mono text-[10px] tracking-[0.2em] text-arcane-dim">
-              TOOL · {{ message.content }}
+          <button
+            class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-raised/60"
+            @click="toggleExpanded(message.id)"
+          >
+            <span class="shrink-0 font-mono text-[10px] text-arcane-dim">
+              {{ expanded.has(message.id) ? '▾' : '▸' }}
             </span>
-            <span class="font-mono text-[10px] tabular-nums text-faint">{{ timeOf(message.createdAt) }}</span>
-          </div>
-          <pre v-if="message.meta" class="overflow-x-auto px-3 py-2 font-mono text-[11px] leading-relaxed text-dim">{{ JSON.stringify(message.meta, null, 2) }}</pre>
+            <span class="shrink-0 font-mono text-[10px] tracking-[0.12em] text-dim">
+              {{ message.content }}
+            </span>
+            <span class="min-w-0 flex-1 truncate font-mono text-[10px] text-faint">
+              {{ compactArgs(message.meta) }}
+            </span>
+            <span class="shrink-0 font-mono text-[9px] tabular-nums text-faint">
+              {{ timeOf(message.createdAt) }}
+            </span>
+          </button>
+          <pre
+            v-if="expanded.has(message.id) && message.meta"
+            class="overflow-x-auto border-t border-line px-3 py-2 font-mono text-[11px] leading-relaxed text-dim"
+          >{{ prettyMeta(message.meta) }}</pre>
         </div>
 
-        <!-- command rows: mono block -->
-        <div v-else-if="message.role === 'command'" class="border border-line bg-abyss px-3 py-2">
-          <div class="mb-1 flex items-center justify-between">
-            <span class="font-mono text-[10px] tracking-[0.2em] text-faint">COMMAND</span>
-            <span class="font-mono text-[10px] tabular-nums text-faint">{{ timeOf(message.createdAt) }}</span>
-          </div>
-          <pre class="overflow-x-auto font-mono text-[12px] text-ink">$ {{ message.content }}</pre>
+        <!-- command/output rows: one compact line, expandable -->
+        <div v-else-if="message.role === 'command'" class="border border-line bg-abyss">
+          <button
+            class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-raised/60"
+            @click="toggleExpanded(message.id)"
+          >
+            <span class="shrink-0 font-mono text-[10px] text-faint">
+              {{ expanded.has(message.id) ? '▾' : '▸' }}
+            </span>
+            <span class="shrink-0 font-mono text-[10px] tracking-[0.12em] text-faint">
+              {{ message.kind === 'command_output' ? 'OUTPUT' : 'COMMAND' }}
+            </span>
+            <span class="min-w-0 flex-1 truncate font-mono text-[10px] text-dim">
+              {{ compactLine(message.content) }}
+            </span>
+            <span class="shrink-0 font-mono text-[9px] tabular-nums text-faint">
+              {{ timeOf(message.createdAt) }}
+            </span>
+          </button>
+          <pre
+            v-if="expanded.has(message.id)"
+            class="overflow-x-auto border-t border-line px-3 py-2 font-mono text-[11px] leading-relaxed text-dim"
+          >{{ message.content }}</pre>
         </div>
 
         <!-- error rows -->
