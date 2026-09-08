@@ -404,6 +404,4 @@ Further integrations:
 
 Your project. Your agents. One workspace.
 
-<sub>Obsidian · Bone · Acid / Occult Technical Brutalism</sub>
-
 </div>
