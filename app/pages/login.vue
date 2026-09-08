@@ -41,6 +41,7 @@ async function submit() {
 <template>
   <div class="w-full max-w-sm">
     <div class="mb-10 text-center">
+      <BrandSigil />
       <h1 class="text-2xl font-light tracking-[0.34em] text-ink">E R E B U S</h1>
       <p class="mt-3 font-mono text-[10px] tracking-[0.3em] text-faint">OPERATOR ACCESS</p>
     </div>
@@ -50,7 +51,7 @@ async function submit() {
         <input
           v-model="username"
           class="field font-mono"
-          placeholder="OPERATOR"
+          aria-label="Operator" placeholder="OPERATOR"
           autocomplete="username"
           @keydown.enter="submit"
         />
@@ -58,7 +59,7 @@ async function submit() {
           v-model="password"
           type="password"
           class="field font-mono"
-          placeholder="PASSWORD"
+          aria-label="Password" placeholder="PASSWORD"
           autocomplete="current-password"
           @keydown.enter="submit"
         />

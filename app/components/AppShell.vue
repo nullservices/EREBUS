@@ -119,9 +119,10 @@ watch(
 
     <!-- LEFT · entity navigation -->
     <aside
-      class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col border-r border-line bg-abyss transition-transform duration-200 lg:static lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 -translate-x-full flex-col overflow-y-auto border-r border-line bg-abyss transition-transform duration-200 lg:static lg:translate-x-0"
       :class="sidebarOpen ? 'translate-x-0' : ''"
     >
+      <NuxtLink to="/" class="brand-lockup" aria-label="EREBUS command"><BrandSigil /><div><span class="brand-wordmark">EREBUS</span><small>AUTONOMOUS INTELLIGENCE<br>CONTROL SYSTEM</small></div></NuxtLink>
       <div class="shrink-0 space-y-4 border-b border-line px-4 py-4">
         <div class="label mb-1.5">PROJECTS</div>
         <div class="space-y-0.5">
@@ -225,11 +226,11 @@ watch(
         <div class="flex min-w-0 items-center gap-4">
           <button
             class="cursor-pointer font-mono text-sm text-faint transition-colors hover:text-ink lg:hidden"
-            @click="sidebarOpen = true"
+            aria-label="Open navigation" @click="sidebarOpen = true"
           >
             ☰
           </button>
-          <span class="text-[13px] font-medium tracking-[0.28em] text-ink">E R E B U S</span>
+          <span class="brand-wordmark text-[16px] text-ink">EREBUS</span>
           <span v-if="viewTitle" class="hidden font-mono text-[10px] tracking-[0.25em] text-faint sm:inline">
             / {{ viewTitle }}
           </span>
@@ -239,13 +240,13 @@ watch(
             <input
               v-model="searchQuery"
               class="w-44 bg-abyss px-2.5 py-1 font-mono text-[10px] tracking-[0.1em] text-dim outline-none transition-colors placeholder:text-faint focus:text-ink"
-              placeholder="SEARCH…"
+              aria-label="Search the system" placeholder="SEARCH…"
               @keydown.enter.prevent="runSearch"
             />
           </div>
           <div class="flex items-center gap-2 font-mono text-[10px] tracking-[0.2em] text-faint">
-            <StatusDot status="COMPLETED" />
-            <span class="hidden sm:inline">SYSTEM ONLINE</span>
+            <StatusDot :status="connected ? 'COMPLETED' : 'OFFLINE'" />
+            <span class="hidden sm:inline">{{ connected ? 'SYSTEM ONLINE' : 'RECONNECTING' }}</span>
           </div>
           <button
             class="hidden cursor-pointer border border-line px-2 py-0.5 font-mono text-[9px] tracking-[0.15em] text-faint transition-colors hover:text-ink sm:block"

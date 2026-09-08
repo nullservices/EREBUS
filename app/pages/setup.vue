@@ -63,6 +63,7 @@ async function initialize() {
 <template>
   <div class="w-full max-w-md">
     <div class="mb-10 text-center">
+      <BrandSigil />
       <h1 class="text-2xl font-light tracking-[0.34em] text-ink">E R E B U S</h1>
       <p class="mt-3 font-mono text-[10px] tracking-[0.3em] text-faint">INITIALIZATION</p>
     </div>

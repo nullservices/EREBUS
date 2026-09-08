@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { DashboardStats, Project } from '~~/shared/types'
+import type { Agent, DashboardStats, Project } from '~~/shared/types'
 
 const { data: stats, refresh: refreshStats } = await useFetch<DashboardStats>('/api/dashboard')
+const { selectedProjectId } = useErebusState()
+const { data: agents, refresh: refreshAgents } = await useFetch<Agent[]>('/api/agents')
+const conversations = computed(() => (agents.value ?? []).filter(a => !selectedProjectId.value || a.projectId === selectedProjectId.value))
 const { data: projects } = await useFetch<Project[]>('/api/projects')
 
 // Any realtime payload refreshes the activity feed and counters.
 const { lastPayload } = useRealtime()
-watch(lastPayload, () => {
+watch(lastPayload, (payload) => {
   void refreshStats()
+  if (payload?.kind === 'agent.status' || payload?.event?.type === 'entity.created') void refreshAgents()
 })
 
 const working = computed(
@@ -32,15 +36,36 @@ const today = new Date().toLocaleDateString('en-GB', {
 <template>
   <div class="h-full overflow-y-auto">
     <div class="mx-auto max-w-5xl px-8 py-10">
-      <header class="mb-10">
-        <div class="label mb-2">SYSTEM</div>
-        <h1 class="text-3xl font-light tracking-[0.25em] text-ink">E R E B U S</h1>
-        <div class="mt-2 font-mono text-[10.5px] tracking-[0.2em] text-faint">
-          {{ today.toUpperCase() }} · LOCAL AUTONOMOUS OPERATIONS
+      <header class="workspace-heading">
+        <div>
+          <div class="label mb-3">EREBUS / WORKSPACE</div>
+          <h1>Your command center.</h1>
+          <p>Open a conversation. Put your agents to work.</p>
         </div>
+        <NuxtLink to="/projects" class="btn">Manage projects <span aria-hidden="true">↗</span></NuxtLink>
       </header>
 
-      <div class="mb-10 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <section class="mb-8" aria-labelledby="conversations-heading">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 id="conversations-heading" class="label">Conversations / {{ conversations.length }}</h2>
+          <NuxtLink to="/agents" class="font-mono text-[11px] text-dim hover:text-arcane">Manage agents ↗</NuxtLink>
+        </div>
+        <div v-if="conversations.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <NuxtLink v-for="agent in conversations" :key="agent.id" :to="`/agents/${agent.id}`" class="conversation-entry">
+            <div class="flex items-center justify-between gap-3">
+              <span class="font-medium text-ink">{{ agent.name }}</span>
+              <span aria-hidden="true" class="text-faint">↗</span>
+            </div>
+            <p class="mt-1 truncate text-xs text-faint">{{ agent.role || 'Agent' }} · {{ agent.projectName || 'No project assigned' }}</p>
+            <div class="mt-5 flex items-center gap-2 font-mono text-[10px] tracking-wider text-dim">
+              <StatusDot :status="agent.status" /> {{ agent.status.replaceAll('_', ' ') }}
+            </div>
+          </NuxtLink>
+        </div>
+        <EmptyState v-else message="NO AGENT CONVERSATIONS" hint="ADD AN AGENT TO START WORKING IN THIS PROJECT" />
+      </section>
+
+      <div class="workspace-stats mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatTile label="ENTITIES" :value="stats?.agents.total ?? 0" :sub="`${stats?.agents.online ?? 0} ONLINE`" />
         <StatTile label="WORKING" :value="working" sub="ACTIVE RUNTIMES" />
         <StatTile label="WAITING" :value="waiting" sub="OR BLOCKED" />
@@ -54,14 +79,14 @@ const today = new Date().toLocaleDateString('en-GB', {
         </NuxtLink>
       </div>
 
-      <div class="grid gap-8 lg:grid-cols-[1fr_320px]">
-        <section>
+      <div class="grid gap-5 xl:grid-cols-[1fr_280px]">
+        <section class="system-panel">
           <div class="label mb-3">RECENT ACTIVITY</div>
           <ActivityFeed :events="stats?.recentEvents ?? []" />
         </section>
 
         <aside class="space-y-6">
-          <section>
+          <section class="system-panel">
             <div class="label mb-3">PROJECTS</div>
             <div v-if="(projects?.length ?? 0) === 0">
               <EmptyState message="NO PROJECTS" hint="CREATE ONE TO ORGANIZE YOUR ENTITIES" />
@@ -85,6 +110,7 @@ const today = new Date().toLocaleDateString('en-GB', {
           </section>
         </aside>
       </div>
+      <p class="mt-6 font-mono text-[10px] tracking-wider text-faint">{{ today.toUpperCase() }} / LOCAL AUTONOMOUS OPERATIONS</p>
     </div>
   </div>
 </template>

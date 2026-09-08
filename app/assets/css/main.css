@@ -1,11 +1,6 @@
 @import "tailwindcss";
 
-/* ── EREBUS design tokens ─────────────────────────────────────────────
-   Developer dark mode · minimal · Linear-style neo-brutalism.
-   Near-black ground, crisp structural borders, hard offset shadows,
-   flat surfaces, one restrained violet accent. No gradients, no glows.
-   System fonts only — EREBUS works fully offline. */
-
+/* EREBUS: Occult Technical Brutalism. Local assets, offline typography. */
 @theme {
   --font-sans: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system,
     "Helvetica Neue", Arial, sans-serif;
@@ -13,29 +8,29 @@
     "Courier New", monospace;
 
   /* grounds */
-  --color-void: #0a0a0c;
-  --color-abyss: #0d0d10;
-  --color-surface: #131317;
-  --color-raised: #1a1a1f;
-  --color-overlay: #212127;
+  --color-void: #080C0E;
+  --color-abyss: #0b0e0f;
+  --color-surface: #101415;
+  --color-raised: #15171A;
+  --color-overlay: #202526;
 
   /* structure — visible, engineered edges */
-  --color-line: #26262e;
-  --color-line-strong: #36363f;
-  --color-line-soft: #1a1a1f;
+  --color-line: #303431;
+  --color-line-strong: #50534a;
+  --color-line-soft: #15171A;
 
   /* ink */
-  --color-ink: #f2f1ee;
-  --color-dim: #a4a2ad;
-  --color-faint: #64626e;
+  --color-ink: #E8E5D9;
+  --color-dim: #aaaDA5;
+  --color-faint: #8A8F89;
 
-  /* accent — restrained violet: the arcane signal in a dark machine */
-  --color-arcane: #7d73c7;
-  --color-arcane-dim: #575090;
+  /* acid signal */
+  --color-arcane: #C8D83D;
+  --color-arcane-dim: #a1ad48;
 
   /* semantic */
-  --color-blood: #c25b52;
-  --color-moss: #77a36e;
+  --color-blood: #D84A3A;
+  --color-moss: #C8D83D;
 }
 
 @layer base {
@@ -55,14 +50,14 @@
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2a32 transparent;
+    scrollbar-color: #303431 transparent;
   }
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a32;
+    background: #303431;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -119,11 +114,11 @@
     color: var(--color-faint);
   }
 
-  /* Panels carry the neo-brutalist signature: hard offset shadow, no blur. */
+  /* Etched panel framing. */
   .panel {
     background: var(--color-surface);
     border: 1px solid var(--color-line);
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+    box-shadow: inset 0 0 0 4px var(--color-void);
   }
 
   .field {
@@ -193,4 +188,49 @@
     border-color: var(--color-blood);
     box-shadow: 2px 2px 0 color-mix(in srgb, var(--color-blood) 30%, transparent);
   }
+}
+
+@layer base {
+ h1,h2 { font-family: Georgia,"Times New Roman",serif; font-weight:400; }
+}
+@layer components {
+ .label { color:var(--color-dim); letter-spacing:.18em; }
+ .brand-sigil { width:40px; height:50px; flex-shrink:0; color:var(--color-ink); }
+ .brand-wordmark { font-family:Georgia,"Times New Roman",serif; font-weight:400; letter-spacing:.32em; }
+ .brand-lockup { display:flex; align-items:center; gap:15px; padding:24px 20px; border-bottom:1px solid var(--color-line); }
+ .brand-lockup .brand-wordmark { font-size:23px; letter-spacing:.22em; }
+ .brand-lockup small { display:block; font:8px/1.8 var(--font-mono); letter-spacing:.18em; color:var(--color-faint); margin-top:5px; }
+ .system-panel { padding:18px; border:1px solid var(--color-line); background:var(--color-abyss); }
+ .system-panel > .label { padding-bottom:14px; border-bottom:1px solid var(--color-line); }
+ .entity-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+ .entity-card { display:flex; flex-wrap:wrap; align-items:center; gap:12px; min-height:185px; padding:22px; border:1px solid var(--color-line-strong); background:radial-gradient(ellipse at 90% 0%,#292d24 0%,transparent 65%),var(--color-abyss); position:relative; }
+ .entity-card::after { content:''; position:absolute; top:8px; right:8px; width:40px; height:40px; border-top:1px solid var(--color-line); border-right:1px solid var(--color-line); pointer-events:none; }
+ .entity-card:hover { border-color:var(--color-arcane); }
+ .entity-card > div:last-child { width:100%; margin-top:12px; padding-top:12px; border-top:1px solid var(--color-line); justify-content:space-between; }
+ .auth-stage { position:relative; isolation:isolate; }
+ .auth-stage > div { padding:30px; background:#080c0eef; border:1px solid var(--color-line-strong); }
+ .auth-stage .brand-sigil { width:70px; height:88px; margin:0 auto 24px; }
+}
+@media(max-width:640px) {
+ main .px-8 { padding-left:18px; padding-right:18px; }
+ .auth-stage > div { padding:20px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ *,*::before,*::after { animation:none !important; transition:none !important; }
+}
+
+@layer components {
+ .workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:32px; padding-bottom:28px; border-bottom:1px solid var(--color-line); }
+ .workspace-heading h1 { font-size:clamp(30px,3.4vw,44px); line-height:1.15; letter-spacing:-.035em; }
+ .workspace-heading p { margin-top:10px; color:var(--color-faint); font-size:13px; }
+ .conversation-entry { display:block; padding:20px; border:1px solid var(--color-line); background:var(--color-abyss); transition:border-color 120ms,background 120ms; }
+ .conversation-entry:hover { border-color:var(--color-arcane-dim); background:var(--color-surface); }
+ .workspace-stats .panel { height:100%; padding:14px; background:transparent; }
+ .workspace-stats .label { font-size:9px; letter-spacing:.1em; }
+ .workspace-stats .text-3xl { font-size:24px; }
+ .workspace-stats .panel > div:last-child { font-size:9px; letter-spacing:.04em; }
+ .panel { box-shadow:none; }
+}
+@media(max-width:640px) {
+ .workspace-heading { align-items:flex-start; flex-direction:column; gap:18px; }
 }

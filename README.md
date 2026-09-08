@@ -1,26 +1,44 @@
 <div align="center">
 
-```
-╔══════════════════════════════════════════════════════════════════════════╗
-║                                                                          ║
-║                        E  R  E  B  U  S                                  ║
-║                                                                          ║
-║          LOCAL AUTONOMOUS AI AGENT COMMAND PLATFORM                      ║
-║                                                                          ║
-╚══════════════════════════════════════════════════════════════════════════╝
-```
+<img src="docs/brand/github-banner.svg" alt="EREBUS — Autonomous Intelligence Control System. Your project. Your agents. One workspace." width="100%">
 
-**A self-hosted command platform for a private AI development workforce.**
+### A local workspace for your AI development team.
 
-![Windows](https://img.shields.io/badge/windows-10%2F11-blue)
-![Node](https://img.shields.io/badge/node-22+-green)
-![Nuxt](https://img.shields.io/badge/nuxt-4-00DC82)
-![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57)
-![Smoke](https://img.shields.io/badge/smoke-110%2F110-darkgreen)
+Talk to your agents. Follow their work. Stay in control.
 
-*An ancient intelligence buried inside a futuristic machine.*
+[![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-15171A?style=flat-square&labelColor=080C0E&color=15171A)](#requirements)
+[![Node](https://img.shields.io/badge/Node-tested%20on%2022-C8D83D?style=flat-square&labelColor=15171A)](#requirements)
+[![Nuxt](https://img.shields.io/badge/Nuxt-4-E8E5D9?style=flat-square&labelColor=15171A)](#project-structure)
+[![SQLite](https://img.shields.io/badge/SQLite-local%20storage-E8E5D9?style=flat-square&labelColor=15171A)](#how-it-works)
+[![Status](https://img.shields.io/badge/Status-in%20development-C8D83D?style=flat-square&labelColor=15171A)](#development-status)
+
+[**Get started**](#quickstart) · [**How it works**](#how-it-works) · [**Providers**](#providers) · [**Roadmap**](#roadmap)
 
 </div>
+
+---
+
+## The workspace
+
+EREBUS brings agent work into a browser: projects, named agents, individual
+conversations, tools, and operator decisions in one place. Execution stays
+on your machine; the interface is accessible across your local network.
+
+| Your project | Your team | Your conversations |
+|---|---|---|
+| Keep work connected to a local directory and repository. | Configure agents with their own roles, providers, and permissions. | Open each agent's chat to send instructions and inspect its work. |
+
+The direction is simple: talk to a project's lead agent, let it create workers
+with their own conversations, and follow the work as a team. Reliable delegation,
+result handoff, and context recovery are active development priorities.
+
+## Development status
+
+The existing isolated smoke suite passed **130/130 checks on September 8, 2026**.
+That verifies individual subsystems; it does not yet establish a complete
+lead-to-worker-to-lead workflow. Known gaps include tool-based message dispatch,
+offline instruction recovery, long-chat pagination, and context restoration.
+See the [functional review](FUNCTIONAL_REVIEW.md) for findings and the implementation sequence.
 
 ---
 
@@ -58,7 +76,7 @@ keep working after the browser closes. You can watch them work from any
 device on your network, send instructions, answer their questions, approve
 dangerous operations, and coordinate them as a team.
 
-- No cloud backend. No accounts. No SaaS.
+- Self-hosted application with a local operator account; model providers may use cloud services.
 - One process, one port, one SQLite database.
 - Every status, streamed word, tool call and error in the UI comes from the
   actual runtime. Nothing is simulated.
@@ -312,7 +330,7 @@ npm run preview     # serve the production build
 npm run smoke       # end-to-end suite (fresh data + running server)
 ```
 
-The smoke suite exercises 110 checks across every subsystem: auth, runtime
+The smoke suite exercises 130 checks across every subsystem: auth, runtime
 lifecycle, realtime websockets, tasks, orchestration, interventions, the
 tool gate (including a live approval round-trip), notifications with a real
 HTTP receiver, security and search. Run it against a separate instance so
@@ -361,7 +379,14 @@ built so integrations are additions, not rewrites.
 
 ## Roadmap
 
-Deliberately deferred, all pluggable through the existing registries:
+The next milestones focus on the project-and-conversation workflow:
+
+- Reliable worker dispatch, result handoff, and parent continuation
+- Persistent conversation sessions and recoverable instruction queues
+- Live message updates, history pagination, and context management
+- Project lead chats with nested worker conversations
+
+Further integrations:
 
 - Local model adapters (Ollama, LM Studio)
 - OpenAI / Gemini runtime adapters
@@ -375,6 +400,10 @@ Deliberately deferred, all pluggable through the existing registries:
 
 <div align="center">
 
-**Built for one machine. Commanded from anywhere in the house.**
+**E R E B U S**
+
+Your project. Your agents. One workspace.
+
+<sub>Obsidian · Bone · Acid / Occult Technical Brutalism</sub>
 
 </div>

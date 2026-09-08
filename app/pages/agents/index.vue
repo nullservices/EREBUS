@@ -35,13 +35,14 @@ async function onSaved() {
         <EmptyState message="NO ENTITIES" hint="CREATE THE FIRST ONE — ARCHON IS THE TRADITIONAL START" />
       </div>
 
-      <div v-else class="divide-y divide-line-soft border border-line bg-surface">
+      <div v-else class="entity-grid">
         <NuxtLink
           v-for="agent in agents"
           :key="agent.id"
           :to="`/agents/${agent.id}`"
-          class="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-raised/60"
+          class="entity-card transition-colors"
         >
+          <BrandSigil />
           <StatusDot :status="agent.status" />
           <div class="w-36 min-w-0">
             <div class="truncate text-[13.5px] text-ink">{{ agent.name }}</div>
